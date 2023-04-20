@@ -7,11 +7,11 @@ import org.parboiled.errors.ErrorUtils
 import org.parboiled.parser.BaseParser
 import org.parboiled.parser.Parboiled
 import org.parboiled.parserunners.ReportingParseRunner
-import org.parboiled.support.ParseTreeUtils
+import java.text.ParseException
 import java.util.*
 
 @BuildParseTree
-open class IniParser : BaseParser<String>() {
+open class IniParser(private val inlineComments: Boolean = true) : BaseParser<String>() {
 
     var ini = Ini()
     private var currentSection = ini
@@ -23,8 +23,7 @@ open class IniParser : BaseParser<String>() {
     open fun section(): Rule = Sequence(
         Ch('['),
         sectionName(),
-        Action<String> { ctx ->
-            println("Section -> " + ctx?.match)
+        Action { ctx ->
             ctx.valueStack.push(ctx.match)
             true
         },
@@ -37,20 +36,28 @@ open class IniParser : BaseParser<String>() {
         },
 
         whitespaces(),
+
+        if (inlineComments) {
+            // inline comment next to a section declaration
+            Optional(comment())
+        } else
+            whitespaces()
     )
 
     open fun comment(): Rule = Sequence(
         whitespaces(),
-        Ch(';'),
+        commentPrefix(),
         ZeroOrMore(NoneOf("\n")),
-        Action<String> { ctx ->
-            println("Comment -> " + ctx?.match)
-            true
-        },
-        lineBreak()
+//        lineBreak()
     )
 
-    open fun lineBreak(): Rule = FirstOf(String("\n\r"), String("\n"), String("\r"))
+    open fun commentPrefix(): Rule = AnyOf(";#")
+
+    open fun lineBreak(): Rule = OneOrMore(
+        FirstOf(
+            String("\n\r"), String("\n"), String("\r")
+        )
+    )
 
     open fun id(): Rule = OneOrMore(NoneOf("[="))
 
@@ -58,7 +65,7 @@ open class IniParser : BaseParser<String>() {
 
     open fun value(): Rule =
 //        Sequence(
-        ZeroOrMore(NoneOf("\n"))
+        ZeroOrMore(NoneOf(";#\n"))
 //        lineBreak()
 //    )
 
@@ -71,7 +78,7 @@ open class IniParser : BaseParser<String>() {
         },
         whitespaces(),
         Ch('='),
-        whitespaces(),
+//        whitespaces(),
 
         value(),
         Action<String> { ctx ->
@@ -82,29 +89,41 @@ open class IniParser : BaseParser<String>() {
         Action<String> { ctx ->
             val value = ctx.valueStack.pop()
             val name = ctx.valueStack.pop()
-            currentSection.addProperty(name.trim(), value)
+            currentSection[name.trim()] = value
             true
         },
-        Action<String> { ctx ->
-            println("\nStack -> " + ctx?.match)
-            ctx.valueStack.forEach {
-                println(it)
-            }
-            true
-        },
+
+        if (inlineComments)
+            Optional(comment())
+        else
+            whitespaces()
     )
 
     open fun ini(): Rule =
         Sequence(
             OneOrMore(
                 FirstOf(
-                    comment(),
+                    Sequence(comment(), lineBreak()),
                     Sequence(section(), lineBreak()),
                     Sequence(assignment(), lineBreak())
                 )
             ),
             EOI
         )
+
+    companion object {
+        fun parse(fileContent: String): Ini {
+            val parser = Parboiled.createParser(IniParser::class.java)
+            val r = ReportingParseRunner<Any>(parser.ini()).run(fileContent)
+
+            if (r.hasErrors()) {
+                println(ErrorUtils.printParseError(r.parseErrors[0]))
+                throw ParseException("Malformed input file", r.parseErrors[0].startIndex)
+            }
+
+            return parser.ini
+        }
+    }
 }
 
 fun readSample(sampleName: String): String {
@@ -119,18 +138,17 @@ fun readSample(sampleName: String): String {
 }
 
 fun main() {
-    val sample = readSample("startsWithExample.ini")
-    println(sample)
-    val parser = Parboiled.createParser(IniParser::class.java)
-    val r = ReportingParseRunner<Any>(parser.ini()).run(sample)
+//    val sample = readSample("startsWithExample.ini")
+    val sample = readSample("sample.ini")
+    var millis = System.currentTimeMillis()
+    println(IniParser.parse(sample))
+    millis = System.currentTimeMillis() - millis
+    println(millis)
 
-    if (r.parseErrors.isNotEmpty())
-        println(ErrorUtils.printParseError(r.parseErrors[0]));
-    else {
-//        println(ParseTreeUtils.printNodeTree(r))
-    }
-
-    println(parser.ini.section("Sample").properties)
-
-
+    millis = System.currentTimeMillis()
+    val inputStream = IniParser::class.java.getResourceAsStream("samples/sample.ini")
+    val ini = com.github.vincentrussell.ini.Ini()
+    ini.load(inputStream)
+    millis = System.currentTimeMillis() - millis
+    println(millis)
 }
