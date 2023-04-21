@@ -13,11 +13,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.github.vincentrussell</groupId>
-            <artifactId>java-ini-parser</artifactId>
-            <version>1.5</version>
-        </dependency>
-        <dependency>
             <groupId>com.imagingbook</groupId>
             <artifactId>parboiled-java</artifactId>
             <version>1.2.0</version>

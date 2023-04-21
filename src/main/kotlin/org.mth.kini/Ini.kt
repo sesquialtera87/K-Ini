@@ -4,9 +4,27 @@ import java.io.*
 import java.nio.charset.Charset
 import java.nio.file.Path
 
-class Ini : IniSection("##root##") {
 
-    fun store(path: Path, charset: Charset=Charsets.UTF_8) {
+class Ini {
+
+    private val root = IniSection("###root###")
+
+    val sections by root::sections
+
+    operator fun get(name: String): String? = root[name]
+
+    operator fun set(name: String, value: String) {
+        root[name] = value
+    }
+
+    fun topLevelProperties(): Iterable<Map.Entry<String, String>> = root.properties()
+
+    fun section(name: String) = if (name == "###root###")
+        root
+    else
+        root.section(name)
+
+    fun store(path: Path, charset: Charset = Charsets.UTF_8) {
         store(this, path, charset)
     }
 
@@ -19,7 +37,7 @@ class Ini : IniSection("##root##") {
             val writer = BufferedWriter(FileWriter(path.toFile(), charset))
             var isWriterEmpty = true
 
-            ini.sections
+            ini.root.sections
                 .filter { !it.isEmpty() }
                 .forEach { section ->
                     if (isWriterEmpty) {
@@ -41,7 +59,7 @@ class Ini : IniSection("##root##") {
             writer.close()
         }
 
-        fun load(path: Path): IniSection = load(FileReader(path.toFile()))
+        fun load(path: Path): Ini = load(FileReader(path.toFile()))
 
         fun load(inputStreamReader: InputStreamReader): Ini {
             val reader = BufferedReader(inputStreamReader)
