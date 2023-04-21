@@ -6,8 +6,6 @@ Simple Kotlin/Java library to read and write `.ini` files (requires Java 11 or a
 
 ## Usage
 
----
-
 #### Working with `.ini` files
 
 An `.ini` file is represented by an instance of the class `org.mth.kini.Ini`, describing
@@ -107,7 +105,5 @@ in the most common types (boolean and numerics):
 **NOTE:** if the value cannot be parsed into the requested datatype an exception is thrown.
 
 ## License
-
----
 
 Distributed under the MIT License.
