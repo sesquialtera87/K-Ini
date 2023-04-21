@@ -1,5 +1,5 @@
 ![GitHub](https://img.shields.io/github/license/sesquialtera87/k-ini)
-x
+
 # K-INI
 
 Simple Kotlin/Java library to read and write `.ini` files (requires Java 11 or above)
