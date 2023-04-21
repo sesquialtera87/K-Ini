@@ -14,7 +14,7 @@ import java.util.*
 open class IniParser(private val inlineComments: Boolean = true) : BaseParser<String>() {
 
     var ini = Ini()
-    private var currentSection = ini
+    private var currentSection: IniSection = ini
 
     open fun sectionName(): Rule = OneOrMore(
         NoneOf("[]"),
@@ -81,7 +81,7 @@ open class IniParser(private val inlineComments: Boolean = true) : BaseParser<St
 //        whitespaces(),
 
         value(),
-        Action<String> { ctx ->
+        Action { ctx ->
             ctx.valueStack.push(ctx.match)
             true
         },

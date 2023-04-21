@@ -1,89 +1,57 @@
 package org.mth.kini
 
-import java.io.BufferedReader
-import java.io.FileReader
-import java.io.InputStreamReader
+import java.io.*
+import java.nio.charset.Charset
 import java.nio.file.Path
 
-class Ini {
-    var sectionName: String = "****"
-    val properties: MutableMap<String, String> = mutableMapOf()
-    val sections: MutableCollection<Ini> = mutableListOf()
+class Ini : IniSection("##root##") {
 
-    fun setProperty(name: String, value: Any) {
-        properties[name] = value.toString()
-    }
-
-    operator fun get(name: String): String? = properties[name]
-
-    operator fun set(name: String, value: String) {
-        properties[name] = value
-    }
-
-    fun hasProperty(name: String) = properties.containsKey(name)
-
-    fun getBoolean(name: String) = properties[name].toBoolean()
-
-    fun getInt(name: String): Int = Integer.valueOf(properties[name])
-
-    fun getLong(name: String): Long {
-        val value = properties[name] ?: throw NumberFormatException("Cannot parse null string")
-
-        return if (value.last().lowercase() == "l") {
-            java.lang.Long.valueOf(value.substring(0, value.length - 1))
-        } else
-            java.lang.Long.valueOf(value)
-    }
-
-    fun getShort(name: String): Short = java.lang.Short.valueOf(properties[name])
-
-    fun getDouble(name: String): Double = java.lang.Double.valueOf(properties[name])
-
-    fun getFloat(name: String): Float = java.lang.Float.valueOf(properties[name])
-
-
-    fun section(name: String): Ini {
-        val iterator = sections.iterator()
-
-        while (iterator.hasNext()) {
-            val section = iterator.next()
-
-            if (name == section.sectionName)
-                return section
-        }
-
-        val newSection = Ini().apply { sectionName = name }
-        sections.add(newSection)
-
-        return newSection
-    }
-
-    override fun toString(): String {
-        val builder = StringBuilder()
-
-        for (section in sections) {
-            if (builder.isNotEmpty())
-                builder.append("\n\n")
-
-            builder.append("[").append(section.sectionName).append("]")
-
-            section.properties.forEach { (name, value) ->
-                builder.append("\n\t").append(name).append("=").append(value)
-            }
-        }
-
-        return builder.toString()
+    fun store(path: Path, charset: Charset) {
+        store(this, path, charset)
     }
 
     companion object {
-        fun load(path: Path): Ini = load(FileReader(path.toFile()))
+        inline fun newIni(block: Ini.() -> Unit) = Ini().apply {
+            block.invoke(this)
+        }
+
+        fun store(ini: Ini, path: Path, charset: Charset = Charsets.UTF_8) {
+            val writer = BufferedWriter(FileWriter(path.toFile(), charset))
+            var isWriterEmpty = true
+
+            ini.sections
+                .filter { !it.isEmpty() }
+                .forEach { section ->
+                    if (isWriterEmpty) {
+                        isWriterEmpty = false
+                    } else {
+                        writer.newLine()
+                        writer.newLine()
+                    }
+
+                    // section declaration
+                    writer.write("[${section.sectionName}]\n")
+
+                    section.properties().forEach {
+                        writer.write("${it.key}=${it.value}")
+                    }
+                }
+
+            writer.flush()
+            writer.close()
+        }
+
+        fun load(path: Path): IniSection = load(FileReader(path.toFile()))
 
         fun load(inputStreamReader: InputStreamReader): Ini {
             val reader = BufferedReader(inputStreamReader)
             val fileContent = reader.readText()
             reader.close()
-
             return IniParser.parse(fileContent)
         }
+    }
+
+    inline fun section(name: String, block: IniSection.() -> Unit) = section(name).apply {
+        block.invoke(this)
     }
 }

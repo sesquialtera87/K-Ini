@@ -41,6 +41,5 @@ class IniParserTest {
         assertFalse(booleans.getBoolean("falseKey"))
         assertFalse(booleans.getBoolean("false2Key"))
         assertFalse(booleans.getBoolean("false3Key"))
-
     }
 }
