@@ -4,11 +4,13 @@ open class IniSection(var sectionName: String) {
     private val properties: MutableMap<String, String> = mutableMapOf()
     val sections: MutableCollection<IniSection> = mutableListOf()
 
+    @Suppress("unused")
     fun setProperty(name: String, value: Any) {
         properties[name] = value.toString()
     }
 
     fun properties() = properties.asIterable()
+
     operator fun get(name: String): String? = properties[name]
 
     operator fun set(name: String, value: String) {
@@ -17,8 +19,10 @@ open class IniSection(var sectionName: String) {
 
     fun isEmpty() = properties.isEmpty()
 
+    @Suppress("unused")
     fun hasProperty(name: String) = properties.containsKey(name)
 
+    @Suppress("unused")
     fun hasSection(name: String) = sections.any { it.sectionName == name }
 
     fun getBoolean(name: String) = properties[name].toBoolean()
@@ -39,6 +43,12 @@ open class IniSection(var sectionName: String) {
     fun getDouble(name: String): Double = java.lang.Double.valueOf(properties[name])
 
     fun getFloat(name: String): Float = java.lang.Float.valueOf(properties[name])
+
+    @Suppress("unused")
+    fun removeSection(name: String) = sections.removeIf { it.sectionName == name }
+
+    @Suppress("unused")
+    fun removeProperty(name: String) = properties.remove(name)
 
     fun section(name: String): IniSection {
         val iterator = sections.iterator()

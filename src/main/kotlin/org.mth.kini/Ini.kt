@@ -6,7 +6,7 @@ import java.nio.file.Path
 
 class Ini : IniSection("##root##") {
 
-    fun store(path: Path, charset: Charset) {
+    fun store(path: Path, charset: Charset=Charsets.UTF_8) {
         store(this, path, charset)
     }
 
@@ -26,14 +26,14 @@ class Ini : IniSection("##root##") {
                         isWriterEmpty = false
                     } else {
                         writer.newLine()
-                        writer.newLine()
                     }
 
                     // section declaration
                     writer.write("[${section.sectionName}]\n")
 
                     section.properties().forEach {
-                        writer.write("${it.key}=${it.value}")
+                        writer.write("${it.key} = ${it.value}")
+                        writer.newLine()
                     }
                 }
 

@@ -7,6 +7,7 @@ import org.parboiled.errors.ErrorUtils
 import org.parboiled.parser.BaseParser
 import org.parboiled.parser.Parboiled
 import org.parboiled.parserunners.ReportingParseRunner
+import java.nio.file.Path
 import java.text.ParseException
 import java.util.*
 
@@ -78,7 +79,7 @@ open class IniParser(private val inlineComments: Boolean = true) : BaseParser<St
         },
         whitespaces(),
         Ch('='),
-//        whitespaces(),
+        whitespaces(),
 
         value(),
         Action { ctx ->
@@ -141,7 +142,8 @@ fun main() {
 //    val sample = readSample("startsWithExample.ini")
     val sample = readSample("sample.ini")
     var millis = System.currentTimeMillis()
-    println(IniParser.parse(sample))
+    val ini1 = IniParser.parse(sample)
+    println(ini1)
     millis = System.currentTimeMillis() - millis
     println(millis)
 
@@ -151,4 +153,20 @@ fun main() {
     ini.load(inputStream)
     millis = System.currentTimeMillis() - millis
     println(millis)
+
+    Ini.newIni {
+        section("Section 1") {
+            set("property 1", "value 1")
+            set("property 2", "value 2")
+        }
+
+        section("Section 2") {
+            set("property 1", "value 1")
+            set("property 2", "value 2")
+        }
+    }
+
+    ini1.store(Path.of("C:\\Users\\matti\\OneDrive\\Desktop\\test.ini"))
+    val ini3 = Ini.load(Path.of("C:\\Users\\matti\\OneDrive\\Desktop\\test.ini"))
+
 }
