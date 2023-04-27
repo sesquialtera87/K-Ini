@@ -46,7 +46,6 @@ open class IniSection(var sectionName: String) {
     @Suppress("unused")
     fun hasProperty(name: String) = properties.containsKey(name)
 
-    @Suppress("unused")
     fun hasSection(name: String) = sections.any { it.sectionName == name }
 
     fun getBoolean(name: String) = properties[name].toBoolean()
