@@ -9,18 +9,23 @@ public class SimpleParser {
 
     static char DOUBLE_QUOTES = '"';
     static char SINGLE_QUOTE = '\'';
+    static char WHITESPACE = ' ';
+    static char EQUAL = '=';
 
     String input;
     int position = 0;
 
+    char ch;
+
+    Ini ini;
+    IniSection currentSection;
+
 
     void consumeWhitespaces() {
-        char ch;
-
         while (!EOF()) {
             ch = peek();
 
-            if (ch == ' ' || ch == '\t')
+            if (ch == WHITESPACE || ch == '\t')
                 consume();
             else break;
         }
@@ -42,18 +47,28 @@ public class SimpleParser {
         return input.charAt(position++);
     }
 
+    boolean startComment() {
+        if (!EOF()) {
+            ch = peek();
+            return (ch == ';' || ch == '#');
+        } else
+            return false;
+    }
+
     boolean parse(String content) throws ParseException {
         input = content;
         position = 0;
+        ini = new Ini();
+        currentSection = ini.section(Ini.ROOT);
 
         while (!EOF()) {
-            char ch = peek();
+            ch = peek();
 
             if (ch == '[') {
                 consume();
                 if (!section())
                     throw new ParseException("Section", 0);
-            } else if (ch == ';' || ch == '#') {
+            } else if (startComment()) {
                 consume();
                 comment();
             } else if (isWhitespace(ch)) {
@@ -66,7 +81,7 @@ public class SimpleParser {
         return true;
     }
 
-    boolean end(boolean consume) {
+    boolean EOL(boolean consume) {
         if (EOF()) return true;
 
         if (peek() == '\n' || peek() == '\r') {
@@ -78,16 +93,16 @@ public class SimpleParser {
         return false;
     }
 
-    boolean end() {
+    boolean EOL() {
         if (EOF()) return true;
 
         return peek() == '\n' || peek() == '\r';
     }
 
     void emptyLine() {
-        char ch = peek();
+        ch = peek();
 
-        while (!end()) {
+        while (!EOL()) {
             if (!isWhitespace(ch))
                 return;
 
@@ -101,9 +116,9 @@ public class SimpleParser {
         StringBuilder b = new StringBuilder();
 
         while (!EOF()) {
-            char ch = peek();
+            ch = peek();
 
-            if (end()) {
+            if (EOL()) {
                 System.out.println("Comment -> " + b);
                 consume();
                 return;
@@ -119,18 +134,19 @@ public class SimpleParser {
         StringBuilder b = new StringBuilder();
 
         while (!EOF()) {
-            char ch = peek();
+            ch = peek();
 
             if (ch == ']') {
                 consume();
                 consumeWhitespaces();
 
-                if (end()) {
+                if (EOL()) {
                     consume();
                     System.out.println("Section: " + b);
+                    currentSection = ini.section(b.toString());
                     return true;
                 } else return false;
-            } else if (end()) {
+            } else if (EOL()) {
                 consume();
                 return false;
             } else {
@@ -143,25 +159,24 @@ public class SimpleParser {
     }
 
     String key() throws ParseException {
-        char ch;
         StringBuilder b = new StringBuilder();
 
         while (!EOF()) {
             ch = peek();
 
-            if (end()) {
+            if (EOL()) {
                 if (b.length() == 0) {
                     throw new RuntimeException("Strange...");
                 } else throw new ParseException("Invalid assignment", 0);
             } else if (isWhitespace(ch)) {
                 consumeWhitespaces();
 
-                if (peek() != '=')
+                if (peek() != EQUAL)
                     throw new ParseException("Spaces not allowed in keys", position);
-            } else if (ch != '=') {
+            } else if (ch != EQUAL) {
                 b.append(ch);
                 consume();
-            } else if (ch == '=') {
+            } else {
                 System.out.println("key [" + b + "]");
                 return b.toString();
             }
@@ -178,7 +193,6 @@ public class SimpleParser {
     }
 
     String doubleQuoteEscape() throws ParseException {
-        char ch;
         boolean stringClosed = false;
         StringBuilder b = new StringBuilder();
 
@@ -187,7 +201,7 @@ public class SimpleParser {
         while (!EOF()) {
             ch = peek();
 
-            if (end() && !stringClosed) {
+            if (EOL() && !stringClosed) {
                 throw new ParseException("Unclosed string value", 0);
             } else if (ch != DOUBLE_QUOTES) {
                 b.append(ch);
@@ -196,7 +210,7 @@ public class SimpleParser {
                 stringClosed = true;
                 consumeWhitespaces();
 
-                if (end(true)) {
+                if (EOL(true)) {
                     System.out.println("Quoted Value [" + b + "]");
                     break;
                 } else throw new ParseException("Invalid character after escaped string", 0);
@@ -207,7 +221,6 @@ public class SimpleParser {
     }
 
     String singleQuoteEscape() throws ParseException {
-        char ch;
         boolean stringClosed = false;
         StringBuilder b = new StringBuilder();
 
@@ -216,7 +229,7 @@ public class SimpleParser {
         while (!EOF()) {
             ch = peek();
 
-            if (end() && !stringClosed) {
+            if (EOL() && !stringClosed) {
                 throw new ParseException("Unclosed string value", 0);
             } else if (ch != SINGLE_QUOTE) {
                 b.append(ch);
@@ -225,7 +238,7 @@ public class SimpleParser {
                 stringClosed = true;
                 consumeWhitespaces();
 
-                if (end(true)) {
+                if (EOL(true)) {
                     System.out.println("Quoted Value [" + b + "]");
                     break;
                 } else throw new ParseException("Invalid character after escaped string", 0);
@@ -236,7 +249,6 @@ public class SimpleParser {
     }
 
     String value() throws ParseException {
-        char ch;
         StringBuilder b = new StringBuilder();
 
         while (!EOF()) {
@@ -250,17 +262,20 @@ public class SimpleParser {
                 break;
             }
 
-            if (ch == ' ') {
+            if (ch == WHITESPACE) {
                 consumeWhitespaces();
 
-                if (end(true))
+                if (startComment()) {
+                    consume();
+                    comment();
+                } else if (EOL(true))
                     break;
                 else
                     throw new ParseException("Whitespace in non escaped value", 0);
-            } else if (!end()) {
+            } else if (!EOL()) {
                 b.append(ch);
                 consume();
-            } else if (end(true)) {
+            } else if (EOL(true)) {
                 System.out.println("Value [" + b + "]");
                 break;
             }
@@ -269,46 +284,25 @@ public class SimpleParser {
         return b.toString();
     }
 
-    boolean assignment() throws ParseException {
+    void assignment() throws ParseException {
         String key = key();
 
-        if (!match('=')) throw new RuntimeException("Strange...");
+        if (!match(EQUAL)) throw new RuntimeException("Strange...");
 
         consumeWhitespaces();
 
         String value = value();
 
-//        while (!EOF()) {
-//            ch = peek();
-//
-//            if (end(true)) {
-//                System.out.println("Value -> " + b);
-//                break;
-//            } else if (inKey && isWhitespace(ch)) {
-//                consumeWhitespaces();
-//
-//                if (peek() != '=')
-//                    throw new ParseException("Spaces not allowed in keys", position);
-//            } else if (ch != '=') {
-//                b.append(ch);
-//                consume();
-//            } else if (ch == '=') {
-//                inKey = false;
-//
-//                consume();
-//                consumeWhitespaces();
-//                System.out.println("key -> " + b);
-//                b = new StringBuilder();
-//            }
-//        }
-
-        return true;
+        currentSection.set(key, value);
     }
 
     public static void main(String[] args) throws ParseException {
         String content = readSample("startsWithExample.ini");
         long millis = System.currentTimeMillis();
-        System.out.println(new SimpleParser().parse(content));
+        SimpleParser parser = new SimpleParser();
+        System.out.println(parser.parse(content));
         System.out.println(System.currentTimeMillis() - millis);
+
+        System.out.println(parser.ini.section(Ini.ROOT));
     }
 }

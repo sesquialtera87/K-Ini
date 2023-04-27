@@ -19,6 +19,8 @@ class Ini {
 
     fun topLevelProperties(): Iterable<Map.Entry<String, String>> = root.properties()
 
+    fun hasSection(name: String) = root.hasSection(name)
+
     fun section(name: String) = if (name == ROOT)
         root
     else
