@@ -84,21 +84,20 @@ public class SimpleParser {
         return peek() == '\n' || peek() == '\r';
     }
 
-    boolean emptyLine() {
+    void emptyLine() {
         char ch = peek();
 
         while (!end()) {
             if (!isWhitespace(ch))
-                return false;
+                return;
 
             consume();
         }
 
         consume();
-        return true;
     }
 
-    boolean comment() {
+    void comment() {
         StringBuilder b = new StringBuilder();
 
         while (!EOF()) {
@@ -107,14 +106,13 @@ public class SimpleParser {
             if (end()) {
                 System.out.println("Comment -> " + b);
                 consume();
-                return true;
+                return;
             } else {
                 b.append(ch);
                 consume();
             }
         }
 
-        return true;
     }
 
     boolean section() {
@@ -252,9 +250,14 @@ public class SimpleParser {
                 break;
             }
 
-            if (ch == ' ')
-                throw new ParseException("Whitespace in non escaped value", 0);
-            else if (!end()) {
+            if (ch == ' ') {
+                consumeWhitespaces();
+
+                if (end(true))
+                    break;
+                else
+                    throw new ParseException("Whitespace in non escaped value", 0);
+            } else if (!end()) {
                 b.append(ch);
                 consume();
             } else if (end(true)) {
