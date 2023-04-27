@@ -7,7 +7,7 @@ import java.nio.file.Path
 
 class Ini {
 
-    private val root = IniSection("###root###")
+    private val root = IniSection(ROOT)
 
     val sections by root::sections
 
@@ -19,7 +19,7 @@ class Ini {
 
     fun topLevelProperties(): Iterable<Map.Entry<String, String>> = root.properties()
 
-    fun section(name: String) = if (name == "###root###")
+    fun section(name: String) = if (name == ROOT)
         root
     else
         root.section(name)
@@ -29,6 +29,9 @@ class Ini {
     }
 
     companion object {
+
+        const val ROOT = "###root###"
+
         inline fun newIni(block: Ini.() -> Unit) = Ini().apply {
             block.invoke(this)
         }

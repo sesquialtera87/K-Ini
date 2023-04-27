@@ -7,6 +7,17 @@ import org.parboiled.parser.Parboiled
 import org.parboiled.parserunners.ReportingParseRunner
 
 class IniParserTest {
+
+    @Test
+    fun emptyIniFile() {
+        assertTrue(SimpleParser().parse(""))
+    }
+
+    @Test
+    fun variousSections() {
+        assertTrue(SimpleParser().parse("[Section 1]\n[Section 2 ]  \n\n[Section 3]"))
+    }
+
     @Test
     fun sections() {
         val sample = readSample("sample.ini")
