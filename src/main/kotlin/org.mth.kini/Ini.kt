@@ -10,14 +10,21 @@ class Ini {
     private val root = IniSection(ROOT)
 
     val sections by root::sections
+    val globalPropertyCount by root::propertyCount
 
+    /**
+     * Return the global property value related to the key [name]
+     */
     operator fun get(name: String): String? = root[name]
 
+    /**
+     * Set the property value related to the key [name] or add a new property if it doesn't exsist
+     */
     operator fun set(name: String, value: String) {
         root[name] = value
     }
 
-    fun topLevelProperties(): Iterable<Map.Entry<String, String>> = root.properties()
+    fun globalProperties(): Iterable<Map.Entry<String, String>> = root.properties()
 
     fun hasSection(name: String) = root.hasSection(name)
 

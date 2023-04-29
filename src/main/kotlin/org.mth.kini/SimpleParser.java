@@ -192,49 +192,78 @@ public class SimpleParser {
         } else return false;
     }
 
-    String doubleQuoteEscape() throws ParseException {
-        boolean stringClosed = false;
-        StringBuilder b = new StringBuilder();
-
-        if (!match(DOUBLE_QUOTES)) return null;
-
-        while (!EOF()) {
-            ch = peek();
-
-            if (EOL() && !stringClosed) {
-                throw new ParseException("Unclosed string value", 0);
-            } else if (ch != DOUBLE_QUOTES) {
-                b.append(ch);
-                consume();
-            } else if (match(DOUBLE_QUOTES)) {
-                stringClosed = true;
-                consumeWhitespaces();
-
-                if (EOL(true)) {
-                    System.out.println("Quoted Value [" + b + "]");
-                    break;
-                } else throw new ParseException("Invalid character after escaped string", 0);
-            }
+    private Character checkEscape() {
+        if (position + 1 >= input.length()) {
+            return null;
         }
 
-        return b.toString();
+        Character ch = input.charAt(position + 1);
+
+        switch (ch) {
+            case 'n':
+                ch = '\n';
+                break;
+            case 'r':
+                ch = '\r';
+                break;
+            case 't':
+                ch = '\t';
+                break;
+            case 'f':
+                ch = '\f';
+                break;
+            case 'b':
+                ch = '\b';
+                break;
+            case '0':
+                ch = '\0';
+                break;
+            case ';':
+            case ':':
+            case '=':
+            case '#':
+            case '\\':
+            case '\'':
+            case '"':
+                break;
+            default:
+                ch = null;
+                break;
+        }
+
+        if (ch != null) {
+            consume();
+            consume();
+        }
+
+        return ch;
     }
 
-    String singleQuoteEscape() throws ParseException {
+    String quotedValue(char quotationChar) throws ParseException {
         boolean stringClosed = false;
         StringBuilder b = new StringBuilder();
 
-        if (!match(SINGLE_QUOTE)) return null;
+        if (!match(quotationChar)) return null;
 
         while (!EOF()) {
             ch = peek();
 
             if (EOL() && !stringClosed) {
                 throw new ParseException("Unclosed string value", 0);
-            } else if (ch != SINGLE_QUOTE) {
-                b.append(ch);
-                consume();
-            } else if (match(SINGLE_QUOTE)) {
+            } else if (ch != quotationChar) {
+                if (ch == '\\') {
+                    Character escape = checkEscape();
+
+                    if (escape == null) {
+                        b.append(ch);
+                        consume();
+                    } else
+                        b.append(escape);
+                } else {
+                    b.append(ch);
+                    consume();
+                }
+            } else if (match(quotationChar)) {
                 stringClosed = true;
                 consumeWhitespaces();
 
@@ -254,15 +283,19 @@ public class SimpleParser {
         while (!EOF()) {
             ch = peek();
 
-            if (ch == DOUBLE_QUOTES) {
-                b.append(doubleQuoteEscape());
-                break;
-            } else if (ch == SINGLE_QUOTE) {
-                b.append(singleQuoteEscape());
+            if (ch == DOUBLE_QUOTES || ch == SINGLE_QUOTE) {
+                b.append(quotedValue(ch));
                 break;
             }
 
-            if (ch == WHITESPACE) {
+            if (ch == '\\') {
+                Character escape = checkEscape();
+
+                if (escape == null) {
+                    b.append(ch);
+                    consume();
+                } else b.append(escape);
+            } else if (ch == WHITESPACE) {
                 consumeWhitespaces();
 
                 if (startComment()) {
@@ -272,6 +305,10 @@ public class SimpleParser {
                     break;
                 else
                     throw new ParseException("Whitespace in non escaped value", 0);
+            } else if (startComment()) {
+                System.out.println("Quoted Value [" + b + "]");
+                consume();
+                comment();
             } else if (!EOL()) {
                 b.append(ch);
                 consume();
@@ -297,7 +334,8 @@ public class SimpleParser {
     }
 
     public static void main(String[] args) throws ParseException {
-        String content = readSample("startsWithExample.ini");
+//        String content = readSample("startsWithExample.ini");
+        String content = readSample("sampleWithQuotes.ini");
         long millis = System.currentTimeMillis();
         SimpleParser parser = new SimpleParser();
         System.out.println(parser.parse(content));

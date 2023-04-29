@@ -1,7 +1,7 @@
 /**
  * MIT License
  *
- * Copyright (c) [2023] [Mattia Marelli]
+ * Copyright (c) 2023 Mattia Marelli
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,8 +25,10 @@
 package org.mth.kini
 
 open class IniSection(var sectionName: String) {
+
     private val properties: MutableMap<String, String> = mutableMapOf()
     val sections: MutableCollection<IniSection> = mutableListOf()
+    val propertyCount by properties::size
 
     @Suppress("unused")
     fun setProperty(name: String, value: Any) {
