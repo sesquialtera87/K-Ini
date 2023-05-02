@@ -1,9 +1,10 @@
+@file:Suppress("unused")
+
 package org.mth.kini
 
 import java.io.*
 import java.nio.charset.Charset
 import java.nio.file.Path
-
 
 class Ini {
 
@@ -18,11 +19,15 @@ class Ini {
     operator fun get(name: String): String? = root[name]
 
     /**
-     * Set the property value related to the key [name] or add a new property if it doesn't exsist
+     * Set the property value related to the key [name] or add a new property if it doesn't exist
      */
     operator fun set(name: String, value: String) {
         root[name] = value
     }
+
+    fun removeProperty(name: String) = root.removeProperty(name)
+
+    fun hasProperty(name: String) = root.hasProperty(name)
 
     fun globalProperties(): Iterable<Map.Entry<String, String>> = root.properties()
 
@@ -32,6 +37,8 @@ class Ini {
         root
     else
         root.section(name)
+
+    fun removeSection(name: String) = root.removeSection(name)
 
     fun store(path: Path, charset: Charset = Charsets.UTF_8) {
         store(this, path, charset)
@@ -77,7 +84,7 @@ class Ini {
             val reader = BufferedReader(inputStreamReader)
             val fileContent = reader.readText()
             reader.close()
-            return IniParser.parse(fileContent)
+            return SimpleKParser().parse(fileContent)
         }
     }
 

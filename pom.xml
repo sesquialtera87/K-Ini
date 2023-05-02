@@ -1,22 +1,50 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.example</groupId>
-    <artifactId>K-Ini</artifactId>
-    <version>1.0-SNAPSHOT</version>
-    <name>Archetype - K-Ini</name>
-    <url>http://maven.apache.org</url>
+    <groupId>org.mth</groupId>
+    <artifactId>k-ini</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <name>K-Ini</name>
+    <description>A Kotlin/Java utility to work with ini files</description>
+    <url>https://github.com/sesquialtera87/K-Ini</url>
 
     <properties>
         <kotlin.version>1.8.20</kotlin.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+<!--    <distributionManagement>-->
+<!--        <repository>-->
+<!--            <id>sonatype-nexus-staging</id>-->
+<!--            <name>Nexus Release Repository</name>-->
+<!--            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>-->
+<!--        </repository>-->
+<!--        <snapshotRepository>-->
+<!--            <id>sonatype-nexus-snapshots</id>-->
+<!--            <name>Sonatype Nexus Snapshots</name>-->
+<!--            <url>https://oss.sonatype.org/content/repositories/snapshots</url>-->
+<!--        </snapshotRepository>-->
+<!--    </distributionManagement>-->
+
+    <developers>
+        <developer>
+            <name>Mattia Marelli</name>
+            <email>sesquialtera87@gmail.com</email>
+            <organization>n/a</organization>
+            <organizationUrl>https://github.com/sesquialtera87/</organizationUrl>
+        </developer>
+    </developers>
+
+    <licenses>
+        <license>
+            <name>Mit License</name>
+            <url>https://mit-license.org/</url>
+        </license>
+    </licenses>
+
+
     <dependencies>
-        <dependency>
-            <groupId>com.imagingbook</groupId>
-            <artifactId>parboiled-java</artifactId>
-            <version>1.2.0</version>
-        </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-stdlib-jdk8</artifactId>
@@ -24,7 +52,7 @@
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
-            <artifactId>kotlin-test</artifactId>
+            <artifactId>kotlin-test-junit</artifactId>
             <version>${kotlin.version}</version>
             <scope>test</scope>
         </dependency>
@@ -66,6 +94,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.10.1</version>
                 <executions>
                     <execution>
                         <id>compile</id>
