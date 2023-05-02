@@ -32,7 +32,7 @@ class SimpleKParser {
     } else false
 
     @Throws(IniParseException::class)
-    fun parse(content: String): Boolean {
+    fun parse(content: String): Ini {
         input = content
         globalOffset = 0
         lineCount = 1
@@ -53,7 +53,8 @@ class SimpleKParser {
                 assignment()
             }
         }
-        return true
+
+        return ini
     }
 
     @Suppress("FunctionName")
@@ -285,7 +286,8 @@ class SimpleKParser {
         @JvmStatic
         fun main(args: Array<String>) {
 //        String content = readSample("startsWithExample.ini");
-            val content = readSample("sampleWithQuotes.ini")
+//            val content = readSample("sampleWithQuotes.ini")
+            val content = readSample("s.ini")
             val millis = System.currentTimeMillis()
             val parser = SimpleKParser()
             println(parser.parse(content))

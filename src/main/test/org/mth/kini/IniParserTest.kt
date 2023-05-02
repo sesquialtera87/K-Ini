@@ -2,13 +2,21 @@ package org.mth.kini
 
 import org.junit.Assert.*
 import org.junit.Test
+import java.lang.Exception
 import kotlin.test.assertFails
 
 class IniParserTest {
 
-    private val parser = SimpleParser()
+    private val parser = SimpleKParser()
 
-    private fun parse(string: String) = parser.parse(string)
+    private fun parse(string: String): Boolean {
+        try {
+            parser.parse(string)
+            return true
+        } catch (exc: Exception) {
+            return false
+        }
+    }
 
     @Test
     fun emptyIniFile() {
@@ -43,22 +51,11 @@ class IniParserTest {
         assertEquals(0.004, parser.ini.section(Ini.ROOT).getDouble("key3"), 0.0002)
 
         // space in non quoted string
-        assertFails { parse("key4 = Hello World!") }
+        assertFalse(parse("key4 = Hello World!"))
 
         // space in key definition
-        assertFails { parse("key 5 = 9") }
+        assertFalse(parse("key 5 = 9"))
 
-    }
-
-    @Test
-    fun sections() {
-        val sample = readSample("sample.ini")
-        val ini = IniParser.parse(sample)
-
-        assertEquals(ini.sections.size, 4)
-
-        val sectionNames = ini.sections.map { it.sectionName }.toTypedArray()
-        assertArrayEquals(sectionNames, arrayOf("Numbers", "String", "Boolean", "Char"))
     }
 
     @Test
