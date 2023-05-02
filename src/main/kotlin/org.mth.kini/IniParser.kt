@@ -25,13 +25,16 @@
 package org.mth.kini
 
 import org.parboiled.Action
+import org.parboiled.Context
 import org.parboiled.Rule
 import org.parboiled.annotations.BuildParseTree
 import org.parboiled.errors.ErrorUtils
+import org.parboiled.parser.BaseActions
 import org.parboiled.parser.BaseParser
 import org.parboiled.parser.Parboiled
 import org.parboiled.parserunners.ReportingParseRunner
-import java.nio.file.Path
+import org.parboiled.support.ValueStack
+import org.parboiled.transform.BaseAction
 import java.text.ParseException
 import java.util.*
 
@@ -39,7 +42,7 @@ import java.util.*
 open class IniParser(private val inlineComments: Boolean = true) : BaseParser<String>() {
 
     var ini = Ini()
-    private var currentSection: IniSection = ini.section("###root###")
+    private var currentSection: IniSection = ini.section(Ini.ROOT)
 
     open fun sectionName(): Rule = OneOrMore(
         NoneOf("[]"),
@@ -88,11 +91,52 @@ open class IniParser(private val inlineComments: Boolean = true) : BaseParser<St
 
     open fun whitespaces(): Rule = ZeroOrMore(Ch(' '))
 
+    open fun doubleQuotedString(): Rule = Sequence(
+        Ch('"'),
+        ZeroOrMore(
+            FirstOf(
+                String("\\\""),
+                NoneOf("\"\n")
+            )
+        ),
+        Ch('"'),
+    )
+
+    open fun singleQuotedString(): Rule = Sequence(
+        Ch('\''),
+        ZeroOrMore(
+            FirstOf(
+                String("\\\""),
+                NoneOf("'\n")
+            )
+        ),
+        Ch('\''),
+    )
+
+    fun valueAction(type: String): Boolean {
+        val ctx = context
+        val match: String = ctx.toString()
+        val valueStack: ValueStack<String> = ctx.valueStack as ValueStack<String>
+        System.out.println()
+
+        if (type == "quoted")
+            valueStack.push(match.substring(1, match.length - 1))
+        else
+            valueStack.push(match)
+
+        System.err.println(valueStack.peek())
+        return true
+    }
+
     open fun value(): Rule =
-//        Sequence(
-        ZeroOrMore(NoneOf(";#\n"))
-//        lineBreak()
-//    )
+        FirstOf(
+            doubleQuotedString(),
+            ACTION(valueAction("quoted")),
+            singleQuotedString(),
+            ACTION(valueAction("quoted")),
+            ZeroOrMore(NoneOf(";#\n")),
+            ACTION(valueAction("default"))
+        )
 
     open fun assignment(): Rule = Sequence(
 //        whitespaces(),
@@ -106,6 +150,7 @@ open class IniParser(private val inlineComments: Boolean = true) : BaseParser<St
         whitespaces(),
 
         value(),
+        // already pushed in value rule
         Action { ctx ->
             ctx.valueStack.push(ctx.match)
             true
@@ -164,28 +209,14 @@ fun readSample(sampleName: String): String {
 
 fun main() {
 //    val sample = readSample("startsWithExample.ini")
-    val sample = readSample("sample.ini")
+    val sample = readSample("sampleWithQuotes.ini")
     var millis = System.currentTimeMillis()
     val ini1 = IniParser.parse(sample)
-    println(ini1)
+    println(ini1.section(Ini.ROOT))
     millis = System.currentTimeMillis() - millis
     println(millis)
 
 
-
-    Ini.newIni {
-        section("Section 1") {
-            set("property 1", "value 1")
-            set("property 2", "value 2")
-        }
-
-        section("Section 2") {
-            set("property 1", "value 1")
-            set("property 2", "value 2")
-        }
-    }
-
-    ini1.store(Path.of("C:\\Users\\matti\\OneDrive\\Desktop\\test.ini"))
-    val ini3 = Ini.load(Path.of("C:\\Users\\matti\\OneDrive\\Desktop\\test.ini"))
+//    ini1.store(Path.of("C:\\Users\\matti\\OneDrive\\Desktop\\test.ini"))
 
 }

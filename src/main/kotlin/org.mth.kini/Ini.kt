@@ -7,19 +7,28 @@ import java.nio.file.Path
 
 class Ini {
 
-    private val root = IniSection("###root###")
+    private val root = IniSection(ROOT)
 
     val sections by root::sections
+    val globalPropertyCount by root::propertyCount
 
+    /**
+     * Return the global property value related to the key [name]
+     */
     operator fun get(name: String): String? = root[name]
 
+    /**
+     * Set the property value related to the key [name] or add a new property if it doesn't exsist
+     */
     operator fun set(name: String, value: String) {
         root[name] = value
     }
 
-    fun topLevelProperties(): Iterable<Map.Entry<String, String>> = root.properties()
+    fun globalProperties(): Iterable<Map.Entry<String, String>> = root.properties()
 
-    fun section(name: String) = if (name == "###root###")
+    fun hasSection(name: String) = root.hasSection(name)
+
+    fun section(name: String) = if (name == ROOT)
         root
     else
         root.section(name)
@@ -29,6 +38,9 @@ class Ini {
     }
 
     companion object {
+
+        const val ROOT = "###root###"
+
         inline fun newIni(block: Ini.() -> Unit) = Ini().apply {
             block.invoke(this)
         }

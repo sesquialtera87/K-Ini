@@ -2,11 +2,54 @@ package org.mth.kini
 
 import org.junit.Assert.*
 import org.junit.Test
-import org.parboiled.errors.ErrorUtils
-import org.parboiled.parser.Parboiled
-import org.parboiled.parserunners.ReportingParseRunner
+import kotlin.test.assertFails
 
 class IniParserTest {
+
+    private val parser = SimpleParser()
+
+    private fun parse(string: String) = parser.parse(string)
+
+    @Test
+    fun emptyIniFile() {
+        assertTrue(parse(""))
+    }
+
+    @Test
+    fun variousSections() {
+        assertTrue(parse("[Section 1]\n[Section 2 ]  \n\n[Section 3]"))
+    }
+
+    @Test
+    fun comments() {
+        assertTrue(parse("; gdgjlsjjadcf  \n\n#fxsaxs\n;#fx \r\n"))
+    }
+
+    @Test
+    fun assignment() {
+        assertTrue(parse("key0="))
+        assertEquals("", parser.ini["key0"])
+
+        assertTrue(parse("key1=198.9"))
+        assertEquals("198.9", parser.ini["key1"])
+        assertEquals(198.9, parser.ini.section(Ini.ROOT).getDouble("key1"), 0.0002)
+
+        assertTrue(parse("key2  =False"))
+        assertEquals("False", parser.ini["key2"])
+        assertEquals(false, parser.ini.section(Ini.ROOT).getBoolean("key2"))
+
+        assertTrue(parse("key3 = 0.004  "))
+        assertEquals("0.004", parser.ini["key3"])
+        assertEquals(0.004, parser.ini.section(Ini.ROOT).getDouble("key3"), 0.0002)
+
+        // space in non quoted string
+        assertFails { parse("key4 = Hello World!") }
+
+        // space in key definition
+        assertFails { parse("key 5 = 9") }
+
+    }
+
     @Test
     fun sections() {
         val sample = readSample("sample.ini")
@@ -19,9 +62,24 @@ class IniParserTest {
     }
 
     @Test
+    fun startsWithSampleIni() {
+        val sample = readSample("startsWithExample.ini")
+        parse(sample)
+        val ini = parser.ini
+
+        val section = ini.section("Sample")
+
+        assertEquals("127.0.0.1:80:8080/tcp", section["my.port.1"])
+        assertEquals("127.0.0.1:70:7070/tcp", section["my.port.2"])
+        assertEquals("Hello", section["string"])
+        assertEquals("Henry", section["user"])
+    }
+
+    @Test
     fun sampleIni() {
         val sample = readSample("sample.ini")
-        val ini = IniParser.parse(sample)
+        parse(sample)
+        val ini = parser.ini
 
         val numbers = ini.section("Numbers")
 
