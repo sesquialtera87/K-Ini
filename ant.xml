@@ -1,0 +1,9 @@
+<project>
+    <target name="JFlex">
+        <exec dir="." executable="java">
+            <arg line="-jar"/>
+            <arg file="C:\Users\matti\Downloads\jflex-1.9.1\jflex-1.9.1\lib\jflex-full-1.9.1.jar"/>
+            <arg path="C:\Users\matti\OneDrive\Documenti\Java\K-Ini\src\main\kotlin\org.mth.kini\ini.flex"/>
+        </exec>
+    </target>
+</project>

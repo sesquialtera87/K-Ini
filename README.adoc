@@ -1,0 +1,163 @@
+= K-INI
+:source-highlighter: highlight.js
+
+A Kotlin/Java library to read and write INI files (requires Java 11 or above)
+
+== File format
+
+A INI file is a text-based configuration file organised in key-value pairs of properties and sections organising them.
+
+=== Key-Value pairs
+
+K-INI recognize as a valid key char every character different from `=` and `:`, as the equal sign and the colon are recognized as delimiters between the key and the value.
+
+NOTE: Leading and trailing whitespaces in the key name are ignored.
+
+CAUTION: A key name can also contain whitespaces, even that practice isn't recommended.
+
+The value is formed by all the characters after the delimiter, until the end of the line.
+
+NOTE: As for keys, leading and trailing whitespaces are ignored.
+
+Values are allowed to be quoted, through single or double quotes, like strings in some programming languages (`key1="value 1"`,`key2='value 2'`).
+This permits to preserve all whitespaces and to use _character escaping_.
+If a value is quoted, the final and ending quotes are not considered as part of the value.
+
+IMPORTANT: K-INI actually threat a INI file line by line, so every syntactical element of the file cannot span more than one line.
+Multiline values can be stored through quotation and escaping each line feed `\n` in the string.
+
+=== Sections
+
+Key-value pairs can be grouped under a *section*.
+A section can be declared on a line by itself, by enclosing its name in square brackets: `[A Section]`.
+There's no explicit end-of-section delimiter, so the section declaration applies to all pairs below it, until another section is declared.
+
+NOTE: Leading and trailing whitespaces in the section name are ignored, so that `[HTTP]` and `[ HTTP ]`
+declare all the same section named `HTTP`.
+
+Not every key-value pair has to belong to a section.
+K-INI support the so-called *global properties*, that is ungrouped pairs declared at the start of the file, before any section declaration.
+
+[source,ini]
+----
+property = "I'm a global one"
+
+[section]
+a = 2
+----
+
+=== Comments
+
+A line starting with `#` or `;` is a comment.
+All chars encountered until the end of the line are discarded from the parser.
+As previously noted, nothing can span more than one line, so multiline comments are not recognised.
+Every line that is to be understood as comment has to starts with one of the comment markers.
+
+K-INI accepts also *inline comments*, placed after a section declaration or a key-value pair.
+
+[source,ini]
+----
+# a comment
+[section]
+a = 2   ; inline comment...
+----
+
+== Usage
+
+=== Working with `.ini` files
+
+An `.ini` file is represented by an instance of the class `org.mth.kini.Ini`, describing sections and properties contained in the `.ini` file.
+
+Instances of the `org.mth.kini.Ini` class can be obtained in two ways:
+
+* instantiate an object through the default constructor `val ini = Ini()`
+* using `Ini.newIni` function to build a `Ini` object in the style of Kotlin scope functions
+
+[source,kotlin]
+----
+val ini = Ini.newIni {
+    section("Section 1") {
+        set("property 1", "value 1")
+        set("property 2", "value 2")
+    }
+    section("Section 2") {
+        set("property 1", "value 1")
+        set("property 2", "value 2")
+    }
+}
+----
+
+Existing `.ini` files can be loaded into a `Ini` object through one of the `load` functions of the `org.mth.kini.Ini` class.
+
+[source,kotlin]
+----
+val ini = Ini.load(Path.of("test\\sample.ini"))
+----
+
+The content of an `Ini` object can be store to the local filesystem with a call to the
+`store(ini: Ini, path: Path, charset: Charset)` function, or by a direct call of the
+`store` function of the `Ini` object.
+
+[source,kotlin]
+----
+val ini = Ini()
+ini.store(Path.of("test\\sample.ini"))
+----
+
+==== Sections
+
+Use the `hasSection(name: String)` to check that a section is present in the `Ini`.
+The function `section(name: String)` retrieves a named section for property retrieval.
+
+[,kotlin]
+----
+val section: IniSection = ini.section("my-section")
+----
+
+When the `Ini` object doesn't contain a section with the given name, the function still returns a new `IniSection` object, so that the same function serves for both creation ad retrieval purposes.
+
+NOTE: Empty sections are not written in the file during the saving process
+
+A section (with all its properties) can be removed from the `Ini` object by calling the `removeSection(name: String)` function.
+
+=== Properties
+
+To check for a property use the `hasProperty(name: String)` function of the `org.mth.kini.IniSection` class.
+
+`IniSection` behaves like a map, so properties are stored as key-value pairs, where both the key and value are `String` objects.
+To insert a new property or to modify an existing value the `IniSection` class provides the
+`set(name: String, value: String)` function.
+To access a property value the class provides the function `get(name: String)` to return the related string value.
+
+The `set` and `get` functions are also implemented as Kotlin operator functions, so properties can be referred by index access:
+
+[,kotlin]
+----
+val value = section["my-property"]      // get a property value
+section["my-property"] = "new value"    // set a property value
+----
+
+NOTE: As already said, K-INI supports _global properties_ belonging to the top-level context of the `.ini` file.
+To access them simply use the `set` and `get` functions or the index access syntax as for the `IniSection`.
+
+[,kotlin]
+----
+val ini = Ini()
+// some initialization code ...
+val value = ini["my-property"]  // obtain a top-level property value
+----
+
+To avoid casts to other types, `IniSection` offers functions to get property values in the most common types (boolean and numerics):
+
+- `getBoolean(name: String)`
+- `getShort(name: String)`
+- `getInt(name: String)`
+- `getLong(name: String)`
+- `getDouble(name: String)`
+- `getFloat(name: String)`
+
+CAUTION: if the value cannot be parsed into the requested datatype an exception is thrown.
+
+== License
+
+Distributed under the *MIT License*.

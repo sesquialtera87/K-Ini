@@ -1,12 +1,36 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2023 Mattia Marelli
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 package org.mth.kini
 
+@Suppress("unused")
 open class IniSection(var sectionName: String) {
 
     private val properties: MutableMap<String, String> = mutableMapOf()
     val sections: MutableCollection<IniSection> = mutableListOf()
     val propertyCount by properties::size
 
-    @Suppress("unused")
     fun setProperty(name: String, value: Any) {
         properties[name] = value.toString()
     }
@@ -21,7 +45,6 @@ open class IniSection(var sectionName: String) {
 
     fun isEmpty() = properties.isEmpty()
 
-    @Suppress("unused")
     fun hasProperty(name: String) = properties.containsKey(name)
 
     fun hasSection(name: String) = sections.any { it.sectionName == name }
@@ -45,10 +68,8 @@ open class IniSection(var sectionName: String) {
 
     fun getFloat(name: String): Float = java.lang.Float.valueOf(properties[name])
 
-    @Suppress("unused")
     fun removeSection(name: String) = sections.removeIf { it.sectionName == name }
 
-    @Suppress("unused")
     fun removeProperty(name: String) = properties.remove(name)
 
     fun section(name: String): IniSection {

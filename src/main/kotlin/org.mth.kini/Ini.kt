@@ -1,3 +1,27 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2023 Mattia Marelli
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 @file:Suppress("unused")
 
 package org.mth.kini
@@ -5,6 +29,7 @@ package org.mth.kini
 import java.io.*
 import java.nio.charset.Charset
 import java.nio.file.Path
+import kotlin.io.path.Path
 
 class Ini {
 
@@ -25,6 +50,12 @@ class Ini {
         root[name] = value
     }
 
+    /**
+     * Get the number of the sections contained in the INI. The number does not include the global section, so
+     * the number counts exactly the explicitly declared sections.
+     */
+    fun sectionCount() = sections.size
+
     fun removeProperty(name: String) = root.removeProperty(name)
 
     fun hasProperty(name: String) = root.hasProperty(name)
@@ -40,22 +71,69 @@ class Ini {
 
     fun removeSection(name: String) = root.removeSection(name)
 
+    fun getBoolean(name: String) = root.getBoolean(name)
+
+    fun getInt(name: String): Int = root.getInt(name)
+
+    fun getLong(name: String): Long = root.getLong(name)
+
+    fun getShort(name: String): Short = root.getShort(name)
+
+    fun getDouble(name: String): Double = root.getDouble(name)
+
+    fun getFloat(name: String): Float = root.getFloat(name)
+
     fun store(path: Path, charset: Charset = Charsets.UTF_8) {
         store(this, path, charset)
+    }
+
+    override fun toString(): String {
+        val b = StringBuilder()
+
+        root.properties().forEach {
+            b.append("${it.key} = ${it.value}")
+            b.append('\n')
+        }
+
+        root.sections
+            .filter { !it.isEmpty() }
+            .forEach { section ->
+                if (b.isNotEmpty()) {
+                    b.append('\n')
+                }
+
+                // section declaration
+                b.append("[${section.sectionName}]\n")
+
+                section.properties().forEach {
+                    b.append("${it.key} = ${it.value}")
+                    b.append('\n')
+                }
+            }
+        return b.toString()
     }
 
     companion object {
 
         const val ROOT = "###root###"
 
+        @JvmStatic
         inline fun newIni(block: Ini.() -> Unit) = Ini().apply {
             block.invoke(this)
         }
 
+        @JvmStatic
         fun store(ini: Ini, path: Path, charset: Charset = Charsets.UTF_8) {
             val writer = BufferedWriter(FileWriter(path.toFile(), charset))
             var isWriterEmpty = true
 
+            // write the global properties
+            ini.root.properties().forEach {
+                writer.write("${it.key} = ${it.value}")
+                writer.newLine()
+            }
+
+            // write the properties of each section
             ini.root.sections
                 .filter { !it.isEmpty() }
                 .forEach { section ->
@@ -78,13 +156,21 @@ class Ini {
             writer.close()
         }
 
+        @JvmStatic
+        fun load(path: String): Ini = load(Path(path))
+
+        @JvmStatic
+        fun load(file: File): Ini = load(file.toPath())
+
+        @JvmStatic
         fun load(path: Path): Ini = load(FileReader(path.toFile()))
 
+        @JvmStatic
         fun load(inputStreamReader: InputStreamReader): Ini {
             val reader = BufferedReader(inputStreamReader)
-            val fileContent = reader.readText()
-            reader.close()
-            return SimpleKParser().parse(fileContent)
+            val lexer = IniScanner(reader)
+            lexer.yylex()
+            return lexer.ini
         }
     }
 
