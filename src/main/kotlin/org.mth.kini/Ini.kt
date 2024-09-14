@@ -62,6 +62,8 @@ class Ini {
 
     fun removeProperty(name: String) = root.removeProperty(name)
 
+    fun removeAllProperties() = root.clear()
+
     fun hasProperty(name: String) = root.hasProperty(name)
 
     fun globalProperties(): Iterable<Map.Entry<String, String>> = root.properties()
@@ -72,6 +74,8 @@ class Ini {
         root
     else
         root.section(name)
+
+    fun removeAllSections() = root.clear()
 
     fun removeSection(name: String) = root.removeSection(name)
 

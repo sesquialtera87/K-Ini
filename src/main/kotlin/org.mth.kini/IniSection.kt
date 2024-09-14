@@ -43,6 +43,8 @@ open class IniSection(var sectionName: String) {
         properties[name] = value
     }
 
+    fun clear() = properties.clear()
+
     fun isEmpty() = properties.isEmpty()
 
     fun hasProperty(name: String) = properties.containsKey(name)
