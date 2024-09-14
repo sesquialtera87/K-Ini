@@ -49,9 +49,15 @@ open class IniSection(var sectionName: String) {
 
     fun hasSection(name: String) = sections.any { it.sectionName == name }
 
-    fun getBoolean(name: String) = properties[name].toBoolean()
+    fun getOr(name: String, defaultValue: String): String = if (properties.containsKey(name)) get(name)!! else defaultValue
+
+    fun getBoolean(name: String): Boolean = properties[name].toBoolean()
+
+    fun getOrBoolean(name: String, defaultValue: Boolean): Boolean = if (properties.containsKey(name)) getBoolean(name) else defaultValue
 
     fun getInt(name: String): Int = Integer.valueOf(properties[name])
+
+    fun getOrInt(name: String, defaultValue: Int): Int = if (properties.containsKey(name)) getInt(name) else defaultValue
 
     fun getLong(name: String): Long {
         val value = properties[name] ?: throw NumberFormatException("Cannot parse null string")
@@ -62,11 +68,19 @@ open class IniSection(var sectionName: String) {
             value.toLong()
     }
 
+    fun getOrLong(name: String, defaultValue: Long): Long = if (properties.containsKey(name)) getLong(name) else defaultValue
+
     fun getShort(name: String): Short = java.lang.Short.valueOf(properties[name])
+
+    fun getOrShort(name: String, defaultValue: Short): Short = if (properties.containsKey(name)) getShort(name) else defaultValue
 
     fun getDouble(name: String): Double = java.lang.Double.valueOf(properties[name])
 
+    fun getOrDouble(name: String, defaultValue: Double): Double = if (properties.containsKey(name)) getDouble(name) else defaultValue
+
     fun getFloat(name: String): Float = java.lang.Float.valueOf(properties[name])
+
+    fun getOrFloat(name: String, defaultValue: Float): Float = if (properties.containsKey(name)) getFloat(name) else defaultValue
 
     fun removeSection(name: String) = sections.removeIf { it.sectionName == name }
 
