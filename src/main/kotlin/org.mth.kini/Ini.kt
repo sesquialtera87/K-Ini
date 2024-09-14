@@ -95,6 +95,10 @@ class Ini {
             b.append('\n')
         }
 
+        // add one empty line between global properties and the sections
+        if (b.isNotEmpty())
+            b.append('\n')
+
         root.sections
             .filter { !it.isEmpty() }
             .forEach { section ->
@@ -110,6 +114,7 @@ class Ini {
                     b.append('\n')
                 }
             }
+
         return b.toString()
     }
 
@@ -171,6 +176,7 @@ class Ini {
             val lexer = IniScanner(reader)
             lexer.yylex()
             return lexer.ini
+//            return Ini()
         }
     }
 
