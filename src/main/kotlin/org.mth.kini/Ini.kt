@@ -30,10 +30,6 @@ import java.io.*
 import java.nio.charset.Charset
 import java.nio.file.Path
 import kotlin.io.path.Path
-import kotlin.text.last
-import kotlin.text.substring
-import kotlin.text.toBoolean
-import kotlin.text.toLong
 
 class Ini {
 
@@ -93,17 +89,40 @@ class Ini {
 
     fun get(name: String, defaultValue: String): String = if (root.hasProperty(name)) get(name)!! else defaultValue
 
-    fun getBoolean(name: String, defaultValue: Boolean): Boolean = if (root.hasProperty(name)) getBoolean(name) else defaultValue
+    fun getBoolean(name: String, defaultValue: Boolean): Boolean =
+        if (root.hasProperty(name)) getBoolean(name) else defaultValue
 
     fun getInt(name: String, defaultValue: Int): Int = if (root.hasProperty(name)) getInt(name) else defaultValue
 
     fun getLong(name: String, defaultValue: Long): Long = if (root.hasProperty(name)) getLong(name) else defaultValue
 
-    fun getShort(name: String, defaultValue: Short): Short = if (root.hasProperty(name)) getShort(name) else defaultValue
+    fun getShort(name: String, defaultValue: Short): Short =
+        if (root.hasProperty(name)) getShort(name) else defaultValue
 
-    fun getDouble(name: String, defaultValue: Double): Double = if (root.hasProperty(name)) getDouble(name) else defaultValue
+    fun getDouble(name: String, defaultValue: Double): Double =
+        if (root.hasProperty(name)) getDouble(name) else defaultValue
 
-    fun getFloat(name: String, defaultValue: Float): Float = if (root.hasProperty(name)) getFloat(name) else defaultValue
+    fun getFloat(name: String, defaultValue: Float): Float =
+        if (root.hasProperty(name)) getFloat(name) else defaultValue
+
+    /**
+     * Copy all properties and sections of the [ini] object into this object.
+     *
+     * **WARNING:** Existing values will be overwritten
+     */
+    fun merge(ini: Ini) {
+        // put all the properties into this INI object
+        ini.globalProperties().forEach { this[it.key] = it.value }
+
+        // copy all sections
+        ini.sections.forEach { section ->
+            if (section.isEmpty().not()) {
+                this.section(section.sectionName) {
+                    section.properties().forEach { section[it.key] = it.value }
+                }
+            }
+        }
+    }
 
     @JvmOverloads
     fun store(path: Path, charset: Charset = Charsets.UTF_8) {

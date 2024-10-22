@@ -26,7 +26,6 @@ package org.mth.kini
 import org.junit.Test
 import java.io.StringReader
 import java.util.*
-import kotlin.io.path.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -35,7 +34,7 @@ class IniScannerTest {
 
     private fun readIni(name: String): String {
         val b = StringBuilder()
-        val input = Scanner(IniScannerTest::class.java.getResourceAsStream(name))
+        val input = Scanner(IniScannerTest::class.java.getResourceAsStream(name)!!)
 
         while (input.hasNext()) {
             b.append(input.nextLine()).append('\n')
@@ -105,5 +104,39 @@ class IniScannerTest {
         assertEquals("Henry", s["userWithComment2"])
         assertEquals("Henry", s["user"])
         assertEquals("Hello", s["string"])
+    }
+
+    @Test
+    fun merge() {
+        val ini1 = Ini.newIni {
+            set("a","2")
+            set("b","19")
+
+            section("section"){
+                set("c","3")
+            }
+        }
+
+        val ini2 = Ini.newIni {
+            set("a","52")
+            set("d","22")
+
+            section("section"){
+                set("c","3")
+            }
+
+            section("section 2"){
+                set("alpha","33.2")
+            }
+        }
+
+        ini1.merge(ini2)
+
+        assertTrue (ini1.hasSection("section 2"))
+        assertTrue (ini1.hasProperty("a"))
+        assertTrue (ini1.hasProperty("b"))
+        assertTrue (ini1.hasProperty("d"))
+        assertEquals(22,ini1.getInt("d"))
+        assertEquals(52,ini1.getInt("a"))
     }
 }
