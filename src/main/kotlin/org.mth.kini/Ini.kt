@@ -91,19 +91,19 @@ class Ini {
 
     fun getFloat(name: String): Float = root.getFloat(name)
 
-    fun getOr(name: String, defaultValue: String): String = if (root.hasProperty(name)) get(name)!! else defaultValue
+    fun get(name: String, defaultValue: String): String = if (root.hasProperty(name)) get(name)!! else defaultValue
 
-    fun getOrBoolean(name: String, defaultValue: Boolean): Boolean = if (root.hasProperty(name)) getBoolean(name) else defaultValue
+    fun getBoolean(name: String, defaultValue: Boolean): Boolean = if (root.hasProperty(name)) getBoolean(name) else defaultValue
 
-    fun getOrInt(name: String, defaultValue: Int): Int = if (root.hasProperty(name)) getInt(name) else defaultValue
+    fun getInt(name: String, defaultValue: Int): Int = if (root.hasProperty(name)) getInt(name) else defaultValue
 
-    fun getOrLong(name: String, defaultValue: Long): Long = if (root.hasProperty(name)) getLong(name) else defaultValue
+    fun getLong(name: String, defaultValue: Long): Long = if (root.hasProperty(name)) getLong(name) else defaultValue
 
-    fun getOrShort(name: String, defaultValue: Short): Short = if (root.hasProperty(name)) getShort(name) else defaultValue
+    fun getShort(name: String, defaultValue: Short): Short = if (root.hasProperty(name)) getShort(name) else defaultValue
 
-    fun getOrDouble(name: String, defaultValue: Double): Double = if (root.hasProperty(name)) getDouble(name) else defaultValue
+    fun getDouble(name: String, defaultValue: Double): Double = if (root.hasProperty(name)) getDouble(name) else defaultValue
 
-    fun getOrFloat(name: String, defaultValue: Float): Float = if (root.hasProperty(name)) getFloat(name) else defaultValue
+    fun getFloat(name: String, defaultValue: Float): Float = if (root.hasProperty(name)) getFloat(name) else defaultValue
 
     @JvmOverloads
     fun store(path: Path, charset: Charset = Charsets.UTF_8) {
