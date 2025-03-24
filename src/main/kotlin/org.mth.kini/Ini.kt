@@ -105,6 +105,27 @@ class Ini {
     fun getFloat(name: String, defaultValue: Float): Float =
         if (root.hasProperty(name)) getFloat(name) else defaultValue
 
+    fun getSub(prefix: String): Collection<String> = globalProperties()
+        .filter { it.key.startsWith("$prefix.") }
+        .map {
+            val s = it.key.substring(prefix.length + 1)
+            var dotIndex = s.indexOf('.')
+            if (dotIndex < 0) dotIndex = s.length
+            return@map s.substring(0, dotIndex)
+        }
+        .distinct()
+
+    fun getSub(sectionName: String, prefix: String): Collection<String> =
+        section(sectionName).properties()
+            .filter { it.key.startsWith("$prefix.") }
+            .map {
+                val s = it.key.substring(prefix.length + 1)
+                var dotIndex = s.indexOf('.')
+                if (dotIndex < 0) dotIndex = s.length
+                return@map s.substring(0, dotIndex)
+            }
+            .distinct()
+
     /**
      * Copy all properties and sections of the [ini] object into this object.
      *
@@ -214,11 +235,19 @@ class Ini {
 
         @JvmStatic
         fun load(inputStreamReader: InputStreamReader): Ini {
+            val ini = Ini()
             val reader = BufferedReader(inputStreamReader)
             val lexer = IniScanner(reader)
             lexer.yylex()
-            return lexer.ini
-//            return Ini()
+            lexer.ini.forEach { section, properties ->
+                if (section == IniScanner.DEFAULT_SECTION)
+                    properties.forEach { ini[it[0]] = it[1] }
+                else {
+                    val sec = ini.section(section)
+                    properties.forEach { sec[it[0]] = it[1] }
+                }
+            }
+            return ini
         }
     }
 

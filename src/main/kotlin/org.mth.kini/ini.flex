@@ -1,6 +1,10 @@
 package org.mth.kini;
 
-import java.util.Arrays;
+import java.nio.charset.MalformedInputException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 %%
 
@@ -9,17 +13,26 @@ import java.util.Arrays;
 %unicode
 %line
 %int
-//%standalone
-//%debug
 
 %{
-    Ini ini = new Ini();
-    IniSection currentSection = ini.section(Ini.ROOT);
+    public static final String DEFAULT_SECTION = "§§§§§";
+
+    Map<String, List<String[]>> ini = new HashMap<>();
+    String currentSection = DEFAULT_SECTION;
     String[] property = new String[2];
     StringBuilder propertyValue;
     boolean quotedValue = false;
 
+    List<String[]> section(String name) {
+        if (!ini.containsKey(name)) {
+            ini.put(name, new ArrayList<>());
+        }
+
+        return ini.get(name);
+    }
+
     void newProperty(String name) {
+        property = new String[2];
         property[0] = name.trim();
         property[1] = "";
         propertyValue = new StringBuilder();
@@ -33,13 +46,14 @@ import java.util.Arrays;
         else
             value = propertyValue.toString().trim();
 
-        currentSection.set(property[0], value);
+        property[1] = value;
+        section(currentSection).add(property);
         quotedValue = false;
     }
 
     void malformed(char c) {
         if(propertyValue.charAt(0)!=c)
-            propertyValue.insert(0,c);
+            propertyValue.insert(0, c);
     }
 %}
 
@@ -49,7 +63,6 @@ Whitespace			= ([ \t]+)
 Comment				= ({Whitespace}*[#;])
 Eol                 = \r|\n|\r\n
 
-%state VALUE
 %state SECTION
 %state PROPERTY_NAME
 %state PROPERTY_VALUE
@@ -92,7 +105,7 @@ Eol                 = \r|\n|\r\n
 <PROPERTY_NAME> {
     {Assign}            { yybegin(PROPERTY_VALUE); }
     [^=:]+              { newProperty(yytext()); }
-    <<EOF>>				{ throw new IniParseException("Expecting property value", yyline); }
+    <<EOF>>				{ throw new MalformedInputException(yyline); }
 }
 
 <PROPERTY_VALUE> {
@@ -106,6 +119,6 @@ Eol                 = \r|\n|\r\n
 
 <SECTION> {
     "]"                 { yybegin(YYINITIAL); }
-    [^\]]+              { currentSection = ini.section(yytext()); }
-	<<EOF>>				{ throw new IniParseException("Malformed input", yyline); }
+    [^\]]+              { currentSection = String.valueOf(yytext()).trim(); }
+	<<EOF>>				{ throw new MalformedInputException(yyline); }
 }
