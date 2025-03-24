@@ -9,7 +9,7 @@
     <name>K-Ini</name>
     <description>A Kotlin/Java utility to work with ini files</description>
     <url>https://github.com/sesquialtera87/K-Ini</url>
-    <packaging>jar</packaging>
+    <packaging>pom</packaging>
 
     <properties>
         <kotlin.version>2.0.0</kotlin.version>
