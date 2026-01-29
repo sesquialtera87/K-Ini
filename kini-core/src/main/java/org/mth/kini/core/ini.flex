@@ -17,7 +17,7 @@ import java.util.Map;
 %{
     public static final String DEFAULT_SECTION = "§§§§§";
 
-    Map<String, List<String[]>> ini = new HashMap<>();
+    public Map<String, List<String[]>> ini = new HashMap<>();
     String currentSection = DEFAULT_SECTION;
     String[] property = new String[2];
     StringBuilder propertyValue;

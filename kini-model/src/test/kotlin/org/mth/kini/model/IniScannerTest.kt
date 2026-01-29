@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2024 Mattia Marelli
+ * Copyright (c) 2025 Mattia Marelli
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,14 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.mth.kini
+
+package org.mth.kini.model
 
 import org.junit.Test
 import java.io.InputStreamReader
-import kotlin.test.assertContentEquals
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class IniScannerTest {
 
@@ -92,6 +90,48 @@ class IniScannerTest {
     }
 
     @Test
+    fun toPropertiesWithConverter(){
+        val ini = Ini.newIni {
+            set("a", "2")
+            set("b", "3")
+
+            section("booleans") {
+                set("a", "true")
+                set("b", "false")
+            }
+        }
+
+        val props = ini.toProperties { section, property -> "${section.sectionName}:$property" }
+        assertEquals(4, props.size)
+        assertEquals("2", props["a"])
+        assertEquals("3", props["b"])
+
+        assertEquals("true", props["booleans:a"])
+        assertEquals("false", props["booleans:b"])
+    }
+
+    @Test
+    fun toProperties() {
+        val ini = Ini.newIni {
+            set("a", "2")
+            set("b", "3")
+
+            section("booleans") {
+                set("a", "true")
+                set("b", "false")
+            }
+        }
+
+        val props = ini.toProperties()
+        assertEquals(4, props.size)
+        assertEquals("2", props["a"])
+        assertEquals("3", props["b"])
+
+        assertEquals("true", props["booleans.a"])
+        assertEquals("false", props["booleans.b"])
+    }
+
+    @Test
     fun merge() {
         val ini1 = Ini.newIni {
             set("a", "2")
@@ -126,7 +166,7 @@ class IniScannerTest {
     }
 
     @Test
-    fun s() {
+    fun sectionsFiltering() {
         val ini = Ini.newIni {
             for (i in 0 until 4)
                 this["test.id.$i"] = i.toString()
