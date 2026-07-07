@@ -138,11 +138,6 @@ class Ini : IniSection(ROOT) {
         }
 
         @JvmStatic
-        inline fun ini(block: Ini.() -> Unit) = Ini().apply {
-            block.invoke(this)
-        }
-
-        @JvmStatic
         fun store(ini: Ini, path: Path, charset: Charset = Charsets.UTF_8) {
             BufferedWriter(FileWriter(path.toFile(), charset)).run {
                 write(ini.toString())
