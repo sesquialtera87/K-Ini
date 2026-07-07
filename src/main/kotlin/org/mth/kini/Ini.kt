@@ -131,8 +131,14 @@ class Ini : IniSection(ROOT) {
     companion object {
         const val ROOT = "###root###"
 
+        @Deprecated("", ReplaceWith("ini"), DeprecationLevel.WARNING)
         @JvmStatic
         inline fun newIni(block: Ini.() -> Unit) = Ini().apply {
+            block.invoke(this)
+        }
+
+        @JvmStatic
+        inline fun ini(block: Ini.() -> Unit) = Ini().apply {
             block.invoke(this)
         }
 
