@@ -176,6 +176,13 @@ class Ini : IniSection(ROOT) {
             }
             return ini
         }
+
+        @JvmStatic
+        fun loadOrNull(path: Path): Ini? = try {
+            load(path)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     inline fun section(name: String, block: IniSection.() -> Unit) = section(name).apply {
