@@ -175,4 +175,6 @@ class Ini : IniSection(ROOT) {
     inline fun section(name: String, block: IniSection.() -> Unit) = section(name).apply {
         block.invoke(this)
     }
+
+    operator fun contains(sectionName: String): Boolean = hasSection(sectionName)
 }
