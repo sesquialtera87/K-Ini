@@ -38,6 +38,16 @@ open class IniSection(var sectionName: String) : Iterable<Map.Entry<String, Stri
         properties[name] = value.toString()
     }
 
+    /**
+     * Returns a read-only [Set] of all property keys configured in this section.
+     */
+    val keys: Set<String> get() = properties.keys
+
+    /**
+     * Returns a read-only [Collection] of all property string values configured in this section.
+     */
+    val values: Collection<String> get() = properties.values
+
     fun properties(): Map<String, String> = properties
 
     operator fun get(name: String): String? = properties[name]
