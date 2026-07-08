@@ -24,6 +24,7 @@
 
 package org.mth.kini
 
+import org.junit.jupiter.api.assertThrows
 import java.io.InputStreamReader
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -108,5 +109,104 @@ class IniScannerTest {
         assertEquals("Henry", strings["user"])
         assertEquals("Henry", strings["userWithComment"])
         assertEquals("Henry", strings["userWithComment2"])
+    }
+
+    @Test
+    fun testEdgeCaseAggressiveWhitespace() {
+        val iniContent = """
+            
+               [   Sezione Spaziata   ]   
+            
+               chiave spaziata   =      valore pulito      
+            
+        """.trimIndent()
+
+        val ini = Ini.load(InputStreamReader(iniContent.byteInputStream()))
+
+        assertTrue(ini.hasSection("Sezione Spaziata"))
+        // Il parser o la sezione dovrebbero applicare il trim automatico
+        assertEquals("valore pulito", ini.section("Sezione Spaziata")["chiave spaziata"])
+    }
+
+    @Test
+    fun testEdgeCaseDuplicateKeysAndSections() {
+        val iniContent = """
+            [App]
+            theme = light
+            timeout = 30
+            
+            [App]          ; Riapertura della stessa sezione
+            theme = dark   ; Sovrascrittura del valore precedente
+            port = 8080    ; Nuova proprietà aggiunta alla sezione esistente
+        """.trimIndent()
+
+        val ini = Ini.load(InputStreamReader(iniContent.byteInputStream()))
+
+        assertEquals(1, ini.sectionCount()) // La sezione deve essere considerata una sola
+        val app = ini.section("App")
+        assertEquals("dark", app["theme"])  // Il secondo valore ha sovrascritto il primo
+        assertEquals("30", app["timeout"])  // Il valore originale è stato preservato
+        assertEquals(8080, app.getInt("port"))
+    }
+
+//    @Test
+//    fun testEdgeCaseSpecialCharactersInKeys() {
+//        val iniContent = """
+//            [Special]
+//            my-custom_key/data = verified
+//            🚀_mode = active
+//            path.with.dots = true
+//        """.trimIndent()
+//
+//        val ini = Ini.load(InputStreamReader(iniContent.byteInputStream()))
+//        val s = ini.section("Special")
+//
+//        assertEquals("verified", s["my-custom_key/data"])
+//        assertEquals("active", s["🚀_mode"])
+//        assertEquals("true", s["path.with.dots"])
+//    }
+
+    @Test
+    fun testEdgeCaseMalformedAndEmptyArrays() {
+        val iniContent = """
+            [Arrays]
+            empty = []
+            spaces = [   ,   ]
+            unclosed = [1, 2, 3
+            no_brackets = 1, 2, 3
+        """.trimIndent()
+
+        val ini = Ini.load(InputStreamReader(iniContent.byteInputStream()))
+        val s = ini.section("Arrays")
+
+        // 1. Array vuoto
+        val emptyArr = s.getArray("empty")
+        assertTrue(emptyArr.isEmpty() || (emptyArr.size == 1 && emptyArr[0].isEmpty()))
+
+        // 2. Strutture malformate devono lanciare l'eccezione corretta impostata in IniSection
+        assertThrows<UnsupportedOperationException> { s.getArray("unclosed") }
+        assertThrows<UnsupportedOperationException> { s.getArray("no_brackets") }
+    }
+
+    @Test
+    fun testEdgeCaseNumericOverflowAndFormats() {
+        val iniContent = """
+            [Numbers]
+            overflow_int = 2147483648
+            hex_val = 0x1A
+            scientific = 1e3
+        """.trimIndent()
+
+        val ini = Ini.load(InputStreamReader(iniContent.byteInputStream()))
+        val s = ini.section("Numbers")
+
+        // 2147483648 è Int.MAX_VALUE + 1. getInt deve fallire per overflow, ma getLong deve leggerlo
+        assertThrows<NumberFormatException> { s.getInt("overflow_int") }
+        assertEquals(2147483648L, s.getLong("overflow_int"))
+
+        // Se il tuo scanner gestisce solo stringhe numeriche pure, questi lanceranno NumberFormatException.
+        // È utile testarli per capire se vuoi supportare i formati esadecimali/scientifici in futuro.
+        assertEquals("0x1A", s["hex_val"])
+        assertEquals("1e3", s["scientific"])
     }
 }
