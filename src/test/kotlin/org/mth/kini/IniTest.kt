@@ -1,27 +1,3 @@
-/*
- * MIT License
- *
- * Copyright (c) 2026 Mattia Marelli
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
-
 package org.mth.kini
 
 import org.junit.jupiter.api.Assertions.*
@@ -32,7 +8,6 @@ import kotlin.io.path.readText
 
 class IniTest {
 
-    // JUnit 5 inietta automaticamente una cartella temporanea sicura per i test di I/O
     @TempDir
     lateinit var tempDir: Path
 
@@ -40,7 +15,6 @@ class IniTest {
     fun testGlobalPropertiesManagement() {
         val ini = Ini()
 
-        // Verifica assegnazione e recupero proprietà globali (ereditate da IniSection)
         ini["version"] = "1.0.2"
         ini["author"] = "Mattia"
 
@@ -60,7 +34,6 @@ class IniTest {
         assertFalse(ini.hasSection("database"))
         assertEquals(0, ini.sectionCount())
 
-        // Crea o recupera una sezione
         val dbSection = ini.section("database")
         dbSection["host"] = "localhost"
 
@@ -68,11 +41,9 @@ class IniTest {
         assertEquals(1, ini.sectionCount())
         assertEquals("localhost", ini.section("database")["host"])
 
-        // Verifica l'operatore 'contains' (in)
         assertTrue("database" in ini)
         assertFalse("network" in ini)
 
-        // Rimozione sezione
         val removed = ini.removeSection("database")
         assertTrue(removed)
         assertEquals(0, ini.sectionCount())
@@ -83,7 +54,6 @@ class IniTest {
     fun testDslSectionConfiguration() {
         val ini = Ini()
 
-        // Test della funzione scope inline con lambda block
         ini.section("server") {
             this["port"] = "8080"
             this["protocol"] = "https"
@@ -95,6 +65,85 @@ class IniTest {
     }
 
     @Test
+    fun testGetSectionNodes() {
+        val ini = ini {
+            section("db.mysql") { this["user"] = "root" }
+            section("db.postgres") { this["user"] = "postgres" }
+            section("server.api.v1") { this["timeout"] = "10" }
+            section("standalone") { this["key"] = "value" }
+        }
+
+        // Test senza prefisso: deve estrarre i primi token assoluti delle sezioni
+        val rootNodes = ini.getSectionNodes()
+        assertEquals(3, rootNodes.size)
+        assertTrue(rootNodes.containsAll(listOf("db", "server", "standalone")))
+
+        // Test con prefisso "db": deve isolare i nodi figli immediati
+        val dbNodes = ini.getSectionNodes("db")
+        assertEquals(2, dbNodes.size)
+        assertTrue(dbNodes.containsAll(listOf("mysql", "postgres")))
+
+        // Test con prefisso "server": deve isolare il nodo intermedio "api"
+        val serverNodes = ini.getSectionNodes("server")
+        assertEquals(1, serverNodes.size)
+        assertEquals("api", serverNodes.first())
+
+        // Test con prefisso inesistente: deve ritornare una lista vuota
+        val emptyNodes = ini.getSectionNodes("ghost")
+        assertTrue(emptyNodes.isEmpty())
+    }
+
+    @Test
+    fun testGetSectionGroup() {
+        val ini = ini {
+            section("modules.auth") { this["enabled"] = "true" }
+            section("modules.payment") { this["gateway"] = "stripe" }
+            section("network") { this["ip"] = "127.0.0.1" }
+        }
+
+        // Isola il gruppo "modules" rimuovendo il prefisso dai nomi delle sezioni risultanti
+        val modulesGroup = ini.getSectionGroup("modules")
+        assertEquals(2, modulesGroup.size)
+        assertTrue(modulesGroup.containsKey("auth"))
+        assertTrue(modulesGroup.containsKey("payment"))
+        assertFalse(modulesGroup.containsKey("network"))
+
+        assertEquals("true", modulesGroup["auth"]?.get("enabled"))
+        assertEquals("stripe", modulesGroup["payment"]?.get("gateway"))
+    }
+
+    @Test
+    fun testGroupBySectionRoot() {
+        val ini = ini {
+            section("db.mysql") { this["port"] = "3306" }
+            section("db.oracle") { this["port"] = "1521" }
+            section("server.http") { this["port"] = "80" }
+            section("isolated") { this["key"] = "val" }
+        }
+
+        val grouped = ini.groupBySectionRoot()
+
+        // Verifica la presenza dei raggruppamenti principali delle radici
+        assertTrue(grouped.containsKey("db"))
+        assertTrue(grouped.containsKey("server"))
+        assertTrue(grouped.containsKey("")) // Le sezioni senza punti finiscono sotto ""
+
+        // Controlla il sotto-ramo "db"
+        val dbGroup = grouped["db"]!!
+        assertEquals(2, dbGroup.size)
+        assertEquals("3306", dbGroup["mysql"]?.get("port"))
+        assertEquals("1521", dbGroup["oracle"]?.get("port"))
+
+        // Controlla il sotto-ramo "server"
+        val serverGroup = grouped["server"]!!
+        assertEquals("80", serverGroup["http"]?.get("port"))
+
+        // Controlla la radice vuota ""
+        val standaloneGroup = grouped[""]!!
+        assertEquals("val", standaloneGroup["isolated"]?.get("key"))
+    }
+
+    @Test
     fun testMerge() {
         val ini1 = ini {
             this["global_key"] = "value1"
@@ -102,7 +151,7 @@ class IniTest {
         }
 
         val ini2 = ini {
-            this["global_key"] = "overwritten_value" // Sovrascriverà ini1
+            this["global_key"] = "overwritten_value"
             this["new_global"] = "value2"
             section("common") { this["keyB"] = "2" }
             section("unique") { this["keyC"] = "3" }
@@ -110,11 +159,8 @@ class IniTest {
 
         ini1.merge(ini2)
 
-        // Verifica proprietà globali dopo il merge
         assertEquals("overwritten_value", ini1["global_key"])
         assertEquals("value2", ini1["new_global"])
-
-        // Verifica proprietà delle sezioni unite
         assertEquals("1", ini1.section("common")["keyA"])
         assertEquals("2", ini1.section("common")["keyB"])
         assertEquals("3", ini1.section("unique")["keyC"])
@@ -129,12 +175,10 @@ class IniTest {
             }
         }
 
-        // Conversione standard (sectionName.propertyName)
         val props = ini.toProperties()
         assertEquals("true", props.getProperty("debug"))
         assertEquals("root", props.getProperty("database.user"))
 
-        // Conversione con resolver personalizzato (es. usando l'underscore)
         val customProps = ini.toProperties { section, key -> "${section.sectionName}_$key" }
         assertEquals("root", customProps.getProperty("database_user"))
     }
@@ -151,16 +195,13 @@ class IniTest {
 
         val fileTarget = tempDir.resolve("config.ini")
 
-        // Test di salvataggio (store)
         ini.store(fileTarget)
 
-        // Verifica veloce del formato testuale scritto sul disco
         val fileContent = fileTarget.readText()
         assertTrue(fileContent.contains("app_name = K-Ini-Test"))
         assertTrue(fileContent.contains("[ui]"))
         assertTrue(fileContent.contains("theme = dark"))
 
-        // Test di caricamento (load) dal file appena generato
         val loadedIni = Ini.load(fileTarget)
 
         assertEquals("K-Ini-Test", loadedIni["app_name"])
@@ -173,7 +214,6 @@ class IniTest {
     fun testLoadOrNullWithInvalidFile() {
         val nonExistentPath = tempDir.resolve("ghost_file_404.ini")
 
-        // Non deve lanciare eccezioni ma restituire null
         val result = Ini.loadOrNull(nonExistentPath)
         assertNull(result)
     }
@@ -181,12 +221,8 @@ class IniTest {
     @Test
     fun testRemoveAllSections() {
         val ini = ini {
-            section("sec1") {
-                this["k"] = "v"
-            }
-            section("sec2") {
-                this["k"] = "v"
-            }
+            section("sec1") { this["k"] = "v" }
+            section("sec2") { this["k"] = "v" }
         }
 
         assertEquals(2, ini.sectionCount())
