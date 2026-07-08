@@ -5,6 +5,8 @@ image:https://img.shields.io/badge/kotlin-%237F52FF.svg?style=for-the-badge&logo
 image:https://img.shields.io/badge/java-%23ED8B00.svg?style=for-the-badge&logo=openjdk&logoColor=white[]
 image:https://img.shields.io/badge/Compatibility-Java_11%2B-informational.svg?style=for-the-badge&logo=openjdk&logoColor=white[]
 image:https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge[]
+image:https://jitpack.io/v/sesquialtera87/K-Ini.svg?style=for-the-badge[link="https://jitpack.io/#sesquialtera87/K-Ini"]
+// image:https://jitpack.io/v/sesquialtera87/K-Ini/month.svg?style=for-the-badge[link="https://jitpack.io/#sesquialtera87/K-Ini"]
 
 A Kotlin/Java library to read and write INI files (requires Java 11 or above).
 
