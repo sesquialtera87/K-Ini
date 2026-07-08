@@ -185,6 +185,58 @@ val tree: Map<String, Map<String, String>> = section.groupByRoot()
 val dbConfig = section.getGroup("db", stripPrefix = true) // {"host" -> "localhost"}
 ----
 
+== Installation
+
+K-INI is distributed via link:https://jitpack.io[JitPack]. You can include it in your project by adding the repository and the dependency to your build configuration.
+
+NOTE: Here `X.Y.Z` stands for the latest library release version, available in the GitHub page.
+
+=== Gradle (Kotlin DSL)
+
+Add the JitPack repository to your `build.gradle.kts`:
+
+[source,kotlin]
+----
+repositories {
+    mavenCentral()
+    maven { url = uri("https://jitpack.io") }
+}
+----
+
+Then, add the dependency:
+
+[source,kotlin]
+----
+dependencies {
+    implementation("com.github.sesquialtera87:K-Ini:X.Y.Z")
+}
+----
+
+=== Maven
+
+Add the JitPack repository to your `pom.xml`:
+
+[source,xml]
+----
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+----
+
+Then, add the Maven dependency:
+
+[source,xml]
+----
+<dependency>
+    <groupId>com.github.sesquialtera87</groupId>
+    <artifactId>K-Ini</artifactId>
+    <version>X.Y.Z</version>
+</dependency>
+----
+
 == License
 
 Distributed under the link:https://mit-license.org/[*MIT License*].
