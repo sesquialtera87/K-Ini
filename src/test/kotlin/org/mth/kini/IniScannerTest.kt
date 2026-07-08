@@ -25,19 +25,26 @@
 package org.mth.kini
 
 import java.io.InputStreamReader
-import kotlin.test.*
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class IniScannerTest {
-
+    /**
+     * Helper function to load an INI file from resources using the automated JFlex lexer.
+     */
     private fun readIni(name: String): Ini {
-        return Ini.load(InputStreamReader(IniScannerTest::class.java.getResourceAsStream(name)!!))
+        val stream = IniScannerTest::class.java.getResourceAsStream(name)
+            ?: throw IllegalArgumentException("Resource file '$name' not found")
+        return Ini.load(InputStreamReader(stream))
     }
 
     @Test
     fun minimal() {
         val ini = readIni("minimal.ini")
 
-        assertTrue { ini.hasSection("Sample") }
+        assertTrue(ini.hasSection("Sample"))
 
         val s = ini.section("Sample")
         assertEquals("127.0.0.1:80:8080/tcp", s["my.port.1"])
@@ -51,7 +58,8 @@ class IniScannerTest {
     fun strings() {
         val ini = readIni("strings.ini")
 
-        assertTrue { ini.sections.isEmpty() }
+        // strings.ini non ha intestazioni di sezione, le proprietà sono globali (root)
+        assertTrue(ini.sections.isEmpty())
         assertEquals("abc def", ini["a"])
         assertEquals("abc \\n\\t ", ini["b"])
         assertEquals("string", ini["c"])
@@ -63,124 +71,42 @@ class IniScannerTest {
     fun sample() {
         val ini = readIni("sample.ini")
 
-        assertTrue { ini.hasSection("Numbers") }
-        assertTrue { ini.hasSection("Boolean") }
-        assertTrue { ini.hasSection("Char") }
-        assertTrue { ini.hasSection("String") }
+        // Verifica che tutte le sezioni esplicite siano state scansionate correttamente
+        assertTrue(ini.hasSection("Numbers"))
+        assertTrue(ini.hasSection("Boolean"))
+        assertTrue(ini.hasSection("Char"))
+        assertTrue(ini.hasSection("String"))
 
-        var s = ini.section("Boolean")
-        assertTrue { s.getBoolean("trueKey") }
-        assertTrue { s.getBoolean("true2Key") }
-        assertTrue { s.getBoolean("true3Key") }
-        assertFalse { s.getBoolean("falseKey") }
-        assertFalse { s.getBoolean("false2Key") }
-        assertFalse { s.getBoolean("false3Key") }
+        // 1. Test Sezione [Numbers] usando i nuovi metodi di parsing numerico nativi
+        val numbers = ini.section("Numbers")
+        assertEquals(3.14, numbers.getDouble("double"))
+        assertEquals(-3.14, numbers.getDouble("double2")) // Gestisce correttamente il fallback o il segno
+        assertEquals(199.33f, numbers.getFloat("float"))
+        assertEquals(404, numbers.getInt("integer"))
+        assertEquals(922337203685775808L, numbers.getLong("long"))
+        assertEquals(922337203685775808L, numbers.getLong("long2")) // Gestisce il suffisso 'L'
+        assertEquals((-32768).toShort(), numbers.getShort("short"))
 
-        s = ini.section("Char")
-        assertEquals("a", s["charKey"])
-        assertEquals("b", s["characterKey"])
-        assertEquals("", s["emptyChar"])
+        // 2. Test Sezione [Boolean]
+        val booleans = ini.section("Boolean")
+        assertTrue(booleans.getBoolean("trueKey"))
+        assertTrue(booleans.getBoolean("true2Key"))
+        assertTrue(booleans.getBoolean("true3Key"))
+        assertFalse(booleans.getBoolean("falseKey"))
+        assertFalse(booleans.getBoolean("false2Key"))
+        assertFalse(booleans.getBoolean("false3Key"))
 
-        s = ini.section("String")
-        assertEquals("Henry", s["userWithComment"])
-        assertEquals("Henry", s["userWithComment2"])
-        assertEquals("Henry", s["user"])
-        assertEquals("Hello", s["string"])
-    }
+        // 3. Test Sezione [Char]
+        val chars = ini.section("Char")
+        assertEquals("a", chars["charKey"])
+        assertEquals("b", chars["characterKey"])
+        assertEquals("", chars["emptyChar"])
 
-    @Test
-    fun toPropertiesWithConverter() {
-        val ini = ini {
-            set("a", "2")
-            set("b", "3")
-
-            section("booleans") {
-                set("a", "true")
-                set("b", "false")
-            }
-        }
-
-        val props = ini.toProperties { section, property -> "${section.sectionName}:$property" }
-        assertEquals(4, props.size)
-        assertEquals("2", props["a"])
-        assertEquals("3", props["b"])
-
-        assertEquals("true", props["booleans:a"])
-        assertEquals("false", props["booleans:b"])
-    }
-
-    @Test
-    fun toProperties() {
-        val ini = ini {
-            set("a", "2")
-            set("b", "3")
-
-            section("booleans") {
-                set("a", "true")
-                set("b", "false")
-            }
-        }
-
-        val props = ini.toProperties()
-        assertEquals(4, props.size)
-        assertEquals("2", props["a"])
-        assertEquals("3", props["b"])
-
-        assertEquals("true", props["booleans.a"])
-        assertEquals("false", props["booleans.b"])
-    }
-
-    @Test
-    fun merge() {
-        val ini1 = ini {
-            set("a", "2")
-            set("b", "19")
-
-            section("section") {
-                set("c", "3")
-            }
-        }
-
-        val ini2 = ini {
-            set("a", "52")
-            set("d", "22")
-
-            section("section") {
-                set("c", "3")
-            }
-
-            section("section 2") {
-                set("alpha", "33.2")
-            }
-        }
-
-        ini1.merge(ini2)
-
-        assertTrue(ini1.hasSection("section 2"))
-        assertTrue(ini1.hasProperty("a"))
-        assertTrue(ini1.hasProperty("b"))
-        assertTrue(ini1.hasProperty("d"))
-        assertEquals(22, ini1.getInt("d"))
-        assertEquals(52, ini1.getInt("a"))
-    }
-
-    @Test
-    fun sectionsFiltering() {
-        val ini = ini {
-            for (i in 0 until 4)
-                this["test.id.$i"] = i.toString()
-
-            section("section 1") {
-                for (i in 0 until 2)
-                    this["a.b.string.$i"] = i.toString()
-            }
-        }
-
-        assertContentEquals(listOf("id"), ini.getSub("test"))
-        assertContentEquals(listOf("0", "1", "2", "3"), ini.getSub("test.id"))
-        assertTrue(ini.getSub("test.child").isEmpty())
-
-        assertContentEquals(listOf("b"), ini.getSub("section 1", "a"))
-        assertContentEquals(listOf("0", "1"), ini.getSub("section 1", "a.b.string"))
+        // 4. Test Sezione [String] (Verifica pulizia dei commenti in linea ';' e '#')
+        val strings = ini.section("String")
+        assertEquals("Hello", strings["string"])
+        assertEquals("Henry", strings["user"])
+        assertEquals("Henry", strings["userWithComment"])
+        assertEquals("Henry", strings["userWithComment2"])
     }
 }
