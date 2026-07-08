@@ -79,14 +79,60 @@ class Ini : IniSection(ROOT) {
     fun removeSection(name: String) = sectionsMap.remove(name) != null
 
     /**
-     * Extracts a sub-collection of nested property keys from a specific section sharing a common prefix.
+     * Extracts the distinct next-level tokens (nodes) that follow a given section [prefix].
+     * If [prefix] is empty, it returns the very first token of all section names.
      *
-     * @param sectionName The name of the target section.
-     * @param prefix The dot-separated hierarchy prefix to look for.
-     * @return A collection of sub-keys matching the prefix hierarchy.
+     * Example: if sections are `[db.mysql]`, `[db.postgres]` and `[server]`
+     * - `getSectionNodes("db")` returns `["mysql", "postgres"]`
+     * - `getSectionNodes()` returns `["db", "server"]`
      */
-    fun getSub(sectionName: String, prefix: String): Collection<String> =
-        section(sectionName).getSub(prefix)
+    @JvmOverloads
+    fun getSectionNodes(prefix: String = ""): List<String> {
+        val fullPrefix = if (prefix.isEmpty()) "" else "$prefix."
+        return sectionsMap.keys.asSequence()
+            .filter { prefix.isEmpty() || it.startsWith(fullPrefix) }
+            .map { name ->
+                val remaining = name.substring(fullPrefix.length)
+                val dotIndex = remaining.indexOf('.')
+                if (dotIndex < 0) remaining else remaining.substring(0, dotIndex)
+            }
+            .distinct()
+            .toList()
+    }
+
+    /**
+     * Returns a filtered map of [IniSection] instances whose names start with the specified [prefix].
+     * The prefix (and its trailing dot) is stripped from the keys of the returned map.
+     *
+     * Example: if you have `[modules.auth]` and `[modules.payment]`
+     * - `getSectionGroup("modules")` returns a map with keys `{"auth" -> IniSection, "payment" -> IniSection}`
+     */
+    fun getSectionGroup(prefix: String): Map<String, IniSection> {
+        val fullPrefix = "$prefix."
+        return sectionsMap.filter { it.key.startsWith(fullPrefix) }
+            .mapKeys { it.key.substring(fullPrefix.length) }
+    }
+
+    /**
+     * Groups all explicit sections by their root token (the part before the first dot in the section name).
+     * Sections without a dot in their name will be grouped under the root key `""`.
+     *
+     * Example: `[db.mysql]` and `[server.api]`
+     * Returns: `{"db" -> {"mysql" -> IniSection}, "server" -> {"api" -> IniSection}}`
+     */
+    fun groupBySectionRoot(): Map<String, Map<String, IniSection>> = sectionsMap.entries
+        .groupBy(
+            keySelector = { entry ->
+                val dotIndex = entry.key.indexOf('.')
+                if (dotIndex < 0) "" else entry.key.substring(0, dotIndex)
+            },
+            valueTransform = { entry ->
+                val dotIndex = entry.key.indexOf('.')
+                val newKey = if (dotIndex < 0) entry.key else entry.key.substring(dotIndex + 1)
+                Pair(newKey, entry.value)
+            }
+        )
+        .mapValues { (_, pairs) -> pairs.toMap() }
 
     /**
      * Merges all global properties and explicit sections from the given [ini] object into this one.

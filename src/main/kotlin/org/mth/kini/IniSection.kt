@@ -180,15 +180,65 @@ open class IniSection(var sectionName: String) : Iterable<Map.Entry<String, Stri
 
     fun removeProperty(name: String) = properties.remove(name)
 
-    fun getSub(prefix: String): Collection<String> = properties
-        .filter { it.key.startsWith("$prefix.") }
-        .map {
-            val s = it.key.substring(prefix.length + 1)
-            var dotIndex = s.indexOf('.')
-            if (dotIndex < 0) dotIndex = s.length
-            return@map s.substring(0, dotIndex)
-        }
-        .distinct()
+    /**
+     * Extracts the distinct next-level tokens (nodes) that follow a given [prefix].
+     * If [prefix] is empty, it returns the very first token of all keys in this section.
+     *
+     * Example: if keys are `db.mysql.host` and `db.postgres.host`
+     * - `getNodes("db")` returns `["mysql", "postgres"]`
+     * - `getNodes()` returns `["db"]`
+     */
+    @JvmOverloads
+    fun getNodes(prefix: String = ""): Collection<String> {
+        val fullPrefix = if (prefix.isEmpty()) "" else "$prefix."
+        return properties.keys.asSequence()
+            .filter { prefix.isEmpty() || it.startsWith(fullPrefix) }
+            .map { key ->
+                val remaining = key.substring(fullPrefix.length)
+                val dotIndex = remaining.indexOf('.')
+                if (dotIndex < 0) remaining else remaining.substring(0, dotIndex)
+            }
+            .distinct()
+            .toList()
+    }
+
+    /**
+     * Groups all properties in this section by their root token (the part before the first dot).
+     * Properties without a dot in their key will be grouped under an empty string key `""`.
+     *
+     * Example:
+     * `db.host = localhost` and `server.port = 8080`
+     * Returns: `{"db" -> {"host" -> "localhost"}, "server" -> {"port" -> "8080"}}`
+     */
+    fun groupByRoot(): Map<String, Map<String, String>> {
+        return properties.entries
+            .groupBy(
+                keySelector = { entry ->
+                    val dotIndex = entry.key.indexOf('.')
+                    if (dotIndex < 0) "" else entry.key.substring(0, dotIndex)
+                },
+                valueTransform = { entry ->
+                    val dotIndex = entry.key.indexOf('.')
+                    val newKey = if (dotIndex < 0) entry.key else entry.key.substring(dotIndex + 1)
+                    Pair(newKey, entry.value)
+                }
+            )
+            .mapValues { (_, pairs) -> pairs.toMap() }
+    }
+
+    /**
+     * Returns a filtered map containing all properties that start with the specified [prefix].
+     * * @param prefix The dot-separated prefix to filter by (e.g., "db.mysql").
+     * @param stripPrefix If `true`, the prefix and its trailing dot are removed from the resulting map keys.
+     * * Example with `stripPrefix = true`:
+     * `db.mysql.host = localhost` becomes `host = localhost` in the returned map.
+     */
+    @JvmOverloads
+    fun getGroup(prefix: String, stripPrefix: Boolean = true): Map<String, String> {
+        val fullPrefix = "$prefix."
+        return properties.filter { it.key.startsWith(fullPrefix) }
+            .mapKeys { if (stripPrefix) it.key.substring(fullPrefix.length) else it.key }
+    }
 
     override fun toString(): String {
         val builder = StringBuilder()
