@@ -211,4 +211,34 @@ open class IniSection(var sectionName: String) : Iterable<Map.Entry<String, Stri
     override fun iterator(): Iterator<Map.Entry<String, String>> {
         return properties.iterator()
     }
+
+    /**
+     * Infix operator to set a property value using a syntax similar to Kotlin Maps.
+     * * Example: `"port" to 8080`
+     */
+    infix fun String.to(value: Any) {
+        setProperty(this, value)
+    }
+
+    /**
+     * Operator overload to configure a subsection or set properties inside a section block.
+     * Combined with the [to] infix operator, it allows a highly declarative DSL.
+     * * Example:
+     * ```
+     * "database" {
+     *    "host" to "localhost"
+     *    "port" to 5432
+     * }
+     * ```
+     */
+    operator fun String.invoke(block: IniSection.() -> Unit) {
+        if (this@IniSection is Ini) {
+            this@IniSection.section(this, block)
+        } else {
+            // Se siamo già dentro una sezione, possiamo usare la notazione con i punti (sotto-chiavi)
+            val subSection = IniSection("${this@IniSection.sectionName}.$this")
+            subSection.block()
+            subSection.forEach { (k, v) -> this@IniSection["$this.$k"] = v }
+        }
+    }
 }
