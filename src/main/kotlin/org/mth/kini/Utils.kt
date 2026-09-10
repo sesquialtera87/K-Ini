@@ -24,6 +24,55 @@
 
 package org.mth.kini
 
-inline fun ini(block: Ini.() -> Unit) = Ini().apply {
+/**
+ * Specifies the quoting strategy for values in an INI file.
+ */
+enum class IniQuoteMode {
+    /**
+     * Quotes a value only if it contains characters that require escaping
+     * (e.g., comments, whitespace at boundaries, or existing quotes).
+     */
+    WHEN_NEEDED,
+
+    /**
+     * Encloses every value in quotes regardless of its content.
+     */
+    ALWAYS
+}
+
+/**
+ * Regular expression matching values that require quoting in INI files.
+ *
+ * Matches values containing comments (`#`, `;`), line breaks (`\r`, `\n`),
+ * leading/trailing whitespace, or starting with quote characters (`"`, `'`).
+ */
+private val VALUE_NEEDS_QUOTING = Regex("[#;\\r\\n]|^\\s|\\s$|^[\"']")
+
+/**
+ * Quotes a string value based on the specified [IniQuoteMode] and its content.
+ *
+ * Determines whether quoting is necessary and dynamically selects single (`'`)
+ * or double (`"`) quotes to prevent premature string termination when quotes are present in [value].
+ *
+ * @param value The raw string value to process.
+ * @param mode The [IniQuoteMode] strategy controlling when quotes should be applied.
+ * @return The original [value] or a quote-enclosed representation.
+ */
+internal fun quoteValue(value: String, mode: IniQuoteMode): String {
+    if (mode == IniQuoteMode.WHEN_NEEDED && !VALUE_NEEDS_QUOTING.containsMatchIn(value)) {
+        return value
+    }
+    // If the value already contains double quotes but no single quotes, use single quotes
+    val quote = if ('"' in value && '\'' !in value) '\'' else '"'
+    return "$quote$value$quote"
+}
+
+/**
+ * Constructs and configures a new [Ini] instance using a type-safe builder DSL.
+ *
+ * @param block A lambda with receiver allowing configuration of the newly created [Ini] instance.
+ * @return The configured [Ini] object.
+ */
+inline fun ini(block: Ini.() -> Unit): Ini = Ini().apply {
     block.invoke(this)
 }

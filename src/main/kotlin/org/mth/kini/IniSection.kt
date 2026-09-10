@@ -288,7 +288,6 @@ open class IniSection(var sectionName: String) : Iterable<Map.Entry<String, Stri
         if (this@IniSection is Ini) {
             this@IniSection.section(this, block)
         } else {
-            // Se siamo già dentro una sezione, possiamo usare la notazione con i punti (sotto-chiavi)
             val subSection = IniSection("${this@IniSection.sectionName}.$this")
             subSection.block()
             subSection.forEach { (k, v) -> this@IniSection["$this.$k"] = v }
