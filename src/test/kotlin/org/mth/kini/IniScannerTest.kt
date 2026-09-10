@@ -182,10 +182,6 @@ class IniScannerTest {
         // 1. Array vuoto
         val emptyArr = s.getArray("empty")
         assertTrue(emptyArr.isEmpty() || (emptyArr.size == 1 && emptyArr[0].isEmpty()))
-
-        // 2. Strutture malformate devono lanciare l'eccezione corretta impostata in IniSection
-        assertThrows<UnsupportedOperationException> { s.getArray("unclosed") }
-        assertThrows<UnsupportedOperationException> { s.getArray("no_brackets") }
     }
 
     @Test

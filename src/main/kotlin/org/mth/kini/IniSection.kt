@@ -131,51 +131,54 @@ open class IniSection(var sectionName: String) : Iterable<Map.Entry<String, Stri
         if (properties.containsKey(name)) getFloat(name) else defaultValue
 
     /**
-     * Parses a bracket-enclosed list property string (e.g., `[val1, val2, val3]`) into a flat array of string elements.
+     * Parses a list property string into a flat array of string elements.
+     * Accepts values wrapped in `[...]`, `{...}`, or plain separator-delimited strings.
      *
      * @throws IllegalArgumentException If the requested property key name is not found.
-     * @throws UnsupportedOperationException If the formatted string layout is not wrapped inside brackets.
      */
     fun getArray(name: String, separator: String = ","): Array<String> {
         val value = properties[name]?.trim() ?: throw IllegalArgumentException("No property $name found")
 
-        if (value.startsWith("[") && value.endsWith("]")) {
-            return value.substring(1, value.length - 1)
-                .split(separator)
-                .map { it.trim() }
-                .toTypedArray()
-        } else {
-            throw UnsupportedOperationException("Property '$name' is not formatted as an array [x, y, z]")
+        val unwrapped = when {
+            value.startsWith("[") && value.endsWith("]") -> value.substring(1, value.length - 1)
+            value.startsWith("{") && value.endsWith("}") -> value.substring(1, value.length - 1)
+            else -> value
         }
+
+        return unwrapped.split(separator)
+            .map { it.trim() }
+            .toTypedArray()
     }
 
     /**
-     * Parses a bracket-enclosed list property string (e.g., `[1, 2, 3]`) into an array of typed [Number] elements.
+     * Parses a list property string into an array of typed [Number] elements.
+     * Accepts values wrapped in `[...]`, `{...}`, or plain separator-delimited strings.
      *
      * @throws IllegalArgumentException If the requested property key name is not found.
-     * @throws UnsupportedOperationException If the text layout is unbracketed or the class type context is unsupported.
+     * @throws UnsupportedOperationException If the class type is unsupported.
      */
     fun <T : Number> getNumberArray(name: String, clazz: Class<T>, separator: String = ","): Array<out Number> {
         val value = properties[name]?.trim() ?: throw IllegalArgumentException("No property $name found")
 
-        if (value.startsWith("[") && value.endsWith("]")) {
-            val converter: (String) -> Number = when (clazz) {
-                Int::class.java, Integer::class.java -> { s -> s.toInt() }
-                Float::class.java, java.lang.Float::class.java -> { s -> s.toFloat() }
-                Double::class.java, java.lang.Double::class.java -> { s -> s.toDouble() }
-                Long::class.java, java.lang.Long::class.java -> { s -> s.toLong() }
-                Short::class.java, java.lang.Short::class.java -> { s -> s.toShort() }
-                Byte::class.java, java.lang.Byte::class.java -> { s -> s.toByte() }
-                else -> throw UnsupportedOperationException("Unsupported number type: ${clazz.name}")
-            }
-
-            return value.substring(1, value.length - 1)
-                .split(separator)
-                .map { converter(it.trim()) }
-                .toTypedArray()
-        } else {
-            throw UnsupportedOperationException("Property '$name' is not formatted as an array [x, y, z]")
+        val converter: (String) -> Number = when (clazz) {
+            Int::class.java, Integer::class.java -> { s -> s.toInt() }
+            Float::class.java, java.lang.Float::class.java -> { s -> s.toFloat() }
+            Double::class.java, java.lang.Double::class.java -> { s -> s.toDouble() }
+            Long::class.java, java.lang.Long::class.java -> { s -> s.toLong() }
+            Short::class.java, java.lang.Short::class.java -> { s -> s.toShort() }
+            Byte::class.java, java.lang.Byte::class.java -> { s -> s.toByte() }
+            else -> throw UnsupportedOperationException("Unsupported number type: ${clazz.name}")
         }
+
+        val unwrapped = when {
+            value.startsWith("[") && value.endsWith("]") -> value.substring(1, value.length - 1)
+            value.startsWith("{") && value.endsWith("}") -> value.substring(1, value.length - 1)
+            else -> value
+        }
+
+        return unwrapped.split(separator)
+            .map { converter(it.trim()) }
+            .toTypedArray()
     }
 
     fun removeProperty(name: String) = properties.remove(name)

@@ -96,17 +96,22 @@ class IniSectionTest {
     @Test
     fun testArrayParsing() {
         section["strArray"] = "[val1, val2, val3]"
-        section["intArray"] = "[1, 2, 3]"
-        section["notAnArray"] = "val1, val2"
+        section["intArray"] = "{ 1, 2, 3 }"
+        section["extendedArray"] = "val1; val2"
 
-        val strArr = section.getArray("strArray")
+        var strArr = section.getArray("strArray")
         assertArrayEquals(arrayOf("val1", "val2", "val3"), strArr)
+
+        strArr = section.getArray("intArray")
+        assertArrayEquals(arrayOf("1", "2", "3"), strArr)
+
+        strArr = section.getArray("extendedArray", ";")
+        assertArrayEquals(arrayOf("val1", "val2"), strArr)
 
         val intArr = section.getNumberArray("intArray", Int::class.java)
         assertArrayEquals(arrayOf(1, 2, 3), intArr)
 
         assertThrows<IllegalArgumentException> { section.getArray("missing") }
-        assertThrows<UnsupportedOperationException> { section.getArray("notAnArray") }
         assertThrows<UnsupportedOperationException> {
             section.getNumberArray(
                 "intArray",
