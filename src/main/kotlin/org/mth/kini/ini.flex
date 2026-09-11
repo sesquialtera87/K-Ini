@@ -1,6 +1,6 @@
 package org.mth.kini;
 
-import java.util.Arrays;
+import java.util.InputMismatchException;
 
 %%
 
@@ -19,8 +19,8 @@ import java.util.Arrays;
     StringBuilder propertyValue;
     boolean quotedValue = false;
 
-    void newProperty(String name) {
-        property[0] = name.trim();
+    private void newProperty(CharSequence name) {
+        property[0] = name.toString().trim();
         property[1] = "";
         propertyValue = new StringBuilder();
     }
@@ -28,10 +28,11 @@ import java.util.Arrays;
     void addProperty() {
         String value;
 
-        if(quotedValue)
+        if(quotedValue) {
             value = propertyValue.toString().stripLeading();
-        else
+        } else {
             value = propertyValue.toString().trim();
+        }
 
         currentSection.set(property[0], value);
         quotedValue = false;
@@ -72,7 +73,7 @@ Eol                 = \r|\n|\r\n
     {Eol}                   { malformed('\''); addProperty(); yybegin(YYINITIAL); }
     [']                     { quotedValue = true; addProperty(); yybegin(YYINITIAL); }
     <<EOF>>                 { malformed('\''); addProperty(); return 0; }
-    [^]                     { propertyValue.append(zzBuffer[zzMarkedPos-1]); }
+    [^]                     { propertyValue.append(zzBuffer.charAt(zzMarkedPos-1)); }
 }
 
 <STRING> {
@@ -80,7 +81,7 @@ Eol                 = \r|\n|\r\n
     {Eol}                   { malformed('"'); addProperty(); yybegin(YYINITIAL); }
     [\"]                    { quotedValue = true; addProperty(); yybegin(YYINITIAL); }
     <<EOF>>                 { malformed('"'); addProperty(); return 0; }
-    [^]                     { propertyValue.append(zzBuffer[zzMarkedPos-1]); }
+    [^]                     { propertyValue.append(zzBuffer.charAt(zzMarkedPos-1)); }
 }
 
 <COMMENT> {
@@ -92,20 +93,20 @@ Eol                 = \r|\n|\r\n
 <PROPERTY_NAME> {
     {Assign}            { yybegin(PROPERTY_VALUE); }
     [^=:]+              { newProperty(yytext()); }
-    <<EOF>>				{ throw new IniParseException("Expecting property value", yyline); }
+    <<EOF>>				{ throw new InputMismatchException("Expecting property value [line: " + yyline + "]"); }
 }
 
 <PROPERTY_VALUE> {
-    {Whitespace}[\"]    { yybegin(STRING); }
-    {Whitespace}[']     { yybegin(STRING_SINGLE); }
+    {Whitespace}?[\"]   { yybegin(STRING); }
+    {Whitespace}?[']    { yybegin(STRING_SINGLE); }
     {Eol}               { yybegin(YYINITIAL); addProperty(); }
     [#;]                { yybegin(COMMENT); addProperty(); }
-    [^\r\n]             { propertyValue.append(zzBuffer[zzMarkedPos-1]); }
+    [^\r\n]             { propertyValue.append(zzBuffer.charAt(zzMarkedPos-1)); }
     <<EOF>>             { yybegin(YYINITIAL); addProperty(); }
 }
 
 <SECTION> {
     "]"                 { yybegin(YYINITIAL); }
-    [^\]]+              { currentSection = ini.section(yytext()); }
-	<<EOF>>				{ throw new IniParseException("Malformed input", yyline); }
+    [^\]]+              { currentSection = ini.section(yytext().toString().trim()); }
+	<<EOF>>				{ throw new InputMismatchException("Malformed input [line: " + yyline + "]"); }
 }

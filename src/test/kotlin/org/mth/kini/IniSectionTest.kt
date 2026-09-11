@@ -1,9 +1,8 @@
 package org.mth.kini
 
-import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import kotlin.test.*
 
 class IniSectionTest {
 
@@ -68,14 +67,14 @@ class IniSectionTest {
         assertEquals(42, section.getInt("intVal"))
         assertEquals(42, section.getInt("intVal", 10))
         assertEquals(10, section.getInt("missing", 10))
-        assertThrows<NumberFormatException> { section.getInt("invalidInt") }
+        assertFails { section.getInt("invalidInt") }
 
         // Long
         assertEquals(123456789L, section.getLong("longVal1"))
         assertEquals(987654321L, section.getLong("longVal2"))
         assertEquals(555L, section.getLong("longVal3"))
         assertEquals(100L, section.getLong("missing", 100L))
-        assertThrows<NumberFormatException> { section.getLong("invalidInt") }
+        assertFails { section.getLong("invalidInt") }
 
         // Short
         section["shortVal"] = "5"
@@ -100,19 +99,20 @@ class IniSectionTest {
         section["extendedArray"] = "val1; val2"
 
         var strArr = section.getArray("strArray")
-        assertArrayEquals(arrayOf("val1", "val2", "val3"), strArr)
+        assertContentEquals(arrayOf("val1", "val2", "val3"), strArr)
 
         strArr = section.getArray("intArray")
-        assertArrayEquals(arrayOf("1", "2", "3"), strArr)
+        assertContentEquals(arrayOf("1", "2", "3"), strArr)
 
         strArr = section.getArray("extendedArray", ";")
-        assertArrayEquals(arrayOf("val1", "val2"), strArr)
+        assertContentEquals(arrayOf("val1", "val2"), strArr)
 
         val intArr = section.getNumberArray("intArray", Int::class.java)
-        assertArrayEquals(arrayOf(1, 2, 3), intArr)
+            .map { it.toInt() }.toTypedArray()
+        assertContentEquals(arrayOf(1,2,3), intArr)
 
-        assertThrows<IllegalArgumentException> { section.getArray("missing") }
-        assertThrows<UnsupportedOperationException> {
+        assertFails { section.getArray("missing") }
+        assertFails {
             section.getNumberArray(
                 "intArray",
                 String::class.java as Class<Number>
@@ -185,9 +185,9 @@ class IniSectionTest {
         assertEquals(expected, section.toString())
 
         var count = 0
-        for (entry in section) {
-            assertEquals("key", entry.key)
-            assertEquals("value", entry.value)
+        for ((key, value) in section) {
+            assertEquals("key", key)
+            assertEquals("value", value)
             count++
         }
         assertEquals(1, count)

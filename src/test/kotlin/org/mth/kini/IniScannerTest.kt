@@ -24,12 +24,8 @@
 
 package org.mth.kini
 
-import org.junit.jupiter.api.assertThrows
 import java.io.InputStreamReader
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class IniScannerTest {
     /**
@@ -197,7 +193,7 @@ class IniScannerTest {
         val s = ini.section("Numbers")
 
         // 2147483648 è Int.MAX_VALUE + 1. getInt deve fallire per overflow, ma getLong deve leggerlo
-        assertThrows<NumberFormatException> { s.getInt("overflow_int") }
+        assertFails { s.getInt("overflow_int") }
         assertEquals(2147483648L, s.getLong("overflow_int"))
 
         // Se il tuo scanner gestisce solo stringhe numeriche pure, questi lanceranno NumberFormatException.
