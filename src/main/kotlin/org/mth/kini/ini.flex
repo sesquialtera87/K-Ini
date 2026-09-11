@@ -45,7 +45,7 @@ import java.util.InputMismatchException;
 %}
 
 Assign				= [=:]
-Escaped             = "\\"[tnrf0;#'\\]
+Escaped             = "\\"[tnrf0;#\"'\\]
 Whitespace			= ([ \t]+)
 Comment				= ({Whitespace}*[#;])
 Eol                 = \r|\n|\r\n
