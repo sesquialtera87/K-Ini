@@ -58,10 +58,13 @@ class IniScannerTest {
         // strings.ini non ha intestazioni di sezione, le proprietà sono globali (root)
         assertTrue(ini.sections.isEmpty())
         assertEquals("abc def", ini["a"])
-        assertEquals("abc \\n\\t ", ini["b"])
+        assertEquals("abc \n\t ", ini["b"])
         assertEquals("string", ini["c"])
         assertEquals("\'malformed string", ini["d"])
         assertEquals("\"malformed string", ini["e"])
+        assertEquals("\"", ini["quoted1"])
+        assertEquals("\"", ini["quoted2"])
+        assertEquals("'", ini["quoted3"])
     }
 
     @Test

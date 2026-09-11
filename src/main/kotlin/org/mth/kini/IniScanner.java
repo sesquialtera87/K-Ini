@@ -28,7 +28,7 @@ public class IniScanner {
      * ZZ_LEXSTATE[l] is the state in the DFA for the lexical state l
      * ZZ_LEXSTATE[l+1] is the state in the DFA for the lexical state l
      * at the beginning of a line
-     * l is of the form l = 2*k, k a non-negative integer
+     * l is of the form l = 2*k, k a non negative integer
      */
     private static final int[] ZZ_LEXSTATE = {
             0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7
@@ -45,7 +45,7 @@ public class IniScanner {
     private static int[] zzUnpackcmap_top() {
         int[] result = new int[4352];
         int offset = 0;
-        offset = zzUnpackcmap_top(ZZ_CMAP_TOP_PACKED_0, offset, result);
+        zzUnpackcmap_top(ZZ_CMAP_TOP_PACKED_0, offset, result);
         return result;
     }
 
@@ -76,7 +76,7 @@ public class IniScanner {
     private static int[] zzUnpackcmap_blocks() {
         int[] result = new int[512];
         int offset = 0;
-        offset = zzUnpackcmap_blocks(ZZ_CMAP_BLOCKS_PACKED_0, offset, result);
+        zzUnpackcmap_blocks(ZZ_CMAP_BLOCKS_PACKED_0, offset, result);
         return result;
     }
 
@@ -105,7 +105,7 @@ public class IniScanner {
     private static int[] zzUnpackAction() {
         int[] result = new int[36];
         int offset = 0;
-        offset = zzUnpackAction(ZZ_ACTION_PACKED_0, offset, result);
+        zzUnpackAction(ZZ_ACTION_PACKED_0, offset, result);
         return result;
     }
 
@@ -137,7 +137,7 @@ public class IniScanner {
     private static int[] zzUnpackRowMap() {
         int[] result = new int[36];
         int offset = 0;
-        offset = zzUnpackRowMap(ZZ_ROWMAP_PACKED_0, offset, result);
+        zzUnpackRowMap(ZZ_ROWMAP_PACKED_0, offset, result);
         return result;
     }
 
@@ -329,9 +329,27 @@ public class IniScanner {
         quotedValue = false;
     }
 
+    private char unescape(char c) {
+        switch (c) {
+            case 't':
+                return '\t';
+            case 'n':
+                return '\n';
+            case 'r':
+                return '\r';
+            case 'f':
+                return '\f';
+            case '0':
+                return '\u0000';
+            default:
+                return c; // ; # ' " \\  restano se stessi
+        }
+    }
+
     void malformed(char c) {
-        if (propertyValue.charAt(0) != c)
+        if (propertyValue.charAt(0) != c) {
             propertyValue.insert(0, c);
+        }
     }
 
 
@@ -385,6 +403,21 @@ public class IniScanner {
      */
     public final CharSequence yytext() {
         return zzBuffer.subSequence(zzStartRead, zzMarkedPos);
+    }
+
+
+    /**
+     * Returns the character at position {@code pos} from the
+     * matched text.
+     * <p>
+     * It is equivalent to yytext().charAt(pos), but faster
+     *
+     * @param pos the position of the character to fetch.
+     *            A value from 0 to yylength()-1.
+     * @return the character at position pos
+     */
+    public final char yycharat(int pos) {
+        return zzBuffer.charAt(zzStartRead + pos);
     }
 
 
@@ -443,8 +476,9 @@ public class IniScanner {
      * the end of input is encountered or an I/O-Error occurs.
      *
      * @return the next token
+     * @throws java.io.IOException if any I/O-Error occurs
      */
-    public int yylex() {
+    public int yylex() throws java.io.IOException {
         int zzInput;
         int zzAction;
 
@@ -725,7 +759,7 @@ public class IniScanner {
                     case 33:
                         break;
                     case 17: {
-                        propertyValue.append(yytext());
+                        propertyValue.append(unescape(yycharat(1)));
                     }
                     // fall through
                     case 34:
