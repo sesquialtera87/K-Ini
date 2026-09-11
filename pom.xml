@@ -13,6 +13,18 @@
     <artifactId>K-Ini</artifactId>
     <version>1.2.1</version>
 
+    <scm>
+        <connection>scm:git:https://github.com/sesquialtera87/K-Ini.git</connection>
+        <developerConnection>scm:git:git@github.com:sesquialtera87/K-Ini.git</developerConnection>
+        <url>https://github.com/sesquialtera87/K-Ini</url>
+        <tag>v${project.version}</tag>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/sesquialtera87/K-Ini/issues</url>
+    </issueManagement>
+
     <developers>
         <developer>
             <id>sesquialtera87</id>
@@ -41,13 +53,6 @@
         <kotlin.compiler.jvmTarget>11</kotlin.compiler.jvmTarget>
     </properties>
 
-    <repositories>
-        <repository>
-            <id>mavenCentral</id>
-            <url>https://repo1.maven.org/maven2/</url>
-        </repository>
-    </repositories>
-
     <build>
         <sourceDirectory>src/main/kotlin</sourceDirectory>
         <testSourceDirectory>src/test/kotlin</testSourceDirectory>
@@ -56,6 +61,9 @@
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <version>2.4.10</version>
+                <configuration>
+                    <jvmTarget>${kotlin.compiler.jvmTarget}</jvmTarget>
+                </configuration>
                 <executions>
                     <execution>
                         <id>compile</id>

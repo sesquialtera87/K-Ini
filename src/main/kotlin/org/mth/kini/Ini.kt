@@ -302,7 +302,7 @@ class Ini : IniSection(ROOT) {
             return BufferedReader(inputStreamReader).use { reader ->
                 val ini = Ini()
                 val text = reader.readText()
-                val lexer = IniScanner(reader)
+                val lexer = IniScanner()
                 lexer.reset(text, 0, text.length, IniScanner.YYINITIAL)
                 lexer.yylex()
                 lexer.ini.sections.forEach { section ->

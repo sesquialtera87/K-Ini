@@ -38,14 +38,26 @@ import java.util.InputMismatchException;
         quotedValue = false;
     }
 
+    private char unescape(char c) {
+        switch (c) {
+            case 't': return '\t';
+            case 'n': return '\n';
+            case 'r': return '\r';
+            case 'f': return '\f';
+            case '0': return '\u0000';
+            default: return c; // ; # ' " \\  restano se stessi
+        }
+    }
+
     void malformed(char c) {
-        if(propertyValue.charAt(0)!=c)
-            propertyValue.insert(0,c);
+        if (propertyValue.charAt(0) != c){
+            propertyValue.insert(0, c);
+        }
     }
 %}
 
 Assign				= [=:]
-Escaped             = "\\"[tnrf0;#'\\]
+Escaped             = "\\"[tnrf0;#\"'\\]
 Whitespace			= ([ \t]+)
 Comment				= ({Whitespace}*[#;])
 Eol                 = \r|\n|\r\n
@@ -69,7 +81,7 @@ Eol                 = \r|\n|\r\n
 }
 
 <STRING_SINGLE> {
-    {Escaped}               { propertyValue.append(yytext()); }
+    {Escaped}               { propertyValue.append(unescape(yycharat(1))); }
     {Eol}                   { malformed('\''); addProperty(); yybegin(YYINITIAL); }
     [']                     { quotedValue = true; addProperty(); yybegin(YYINITIAL); }
     <<EOF>>                 { malformed('\''); addProperty(); return 0; }
@@ -77,7 +89,7 @@ Eol                 = \r|\n|\r\n
 }
 
 <STRING> {
-    {Escaped}               { propertyValue.append(yytext()); }
+    {Escaped}               { propertyValue.append(unescape(yycharat(1))); }
     {Eol}                   { malformed('"'); addProperty(); yybegin(YYINITIAL); }
     [\"]                    { quotedValue = true; addProperty(); yybegin(YYINITIAL); }
     <<EOF>>                 { malformed('"'); addProperty(); return 0; }
