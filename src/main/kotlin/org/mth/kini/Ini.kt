@@ -301,14 +301,15 @@ class Ini : IniSection(ROOT) {
         fun load(inputStreamReader: InputStreamReader): Ini {
             return BufferedReader(inputStreamReader).use { reader ->
                 val ini = Ini()
+                val text = reader.readText()
                 val lexer = IniScanner(reader)
+                lexer.reset(text, 0, text.length, IniScanner.YYINITIAL)
                 lexer.yylex()
-                lexer.ini.forEach { (section, properties) ->
-                    if (section == IniScanner.DEFAULT_SECTION) {
-                        properties.forEach { ini[it[0]] = it[1] }
+                lexer.ini.sections.forEach { section ->
+                    if (section.sectionName == ROOT) {
+                        section.forEach { ini[it.key] = it.value }
                     } else {
-                        val sec = ini.section(section)
-                        properties.forEach { sec[it[0]] = it[1] }
+                        ini.sectionsMap[section.sectionName] = section
                     }
                 }
                 ini
