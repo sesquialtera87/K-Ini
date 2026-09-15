@@ -102,15 +102,33 @@ class Ini : IniSection(ROOT) {
 
     /**
      * Returns a filtered map of [IniSection] instances whose names start with the specified [prefix].
-     * The prefix (and its trailing dot) is stripped from the keys of the returned map.
      *
-     * Example: if you have `[modules.auth]` and `[modules.payment]`
-     * - `getSectionGroup("modules")` returns a map with keys `{"auth" -> IniSection, "payment" -> IniSection}`
+     * @param prefix The prefix namespace to filter sections by.
+     * @param delimiter The boundary string separating hierarchy levels. Defaults to `"."`.
+     * @param stripPrefix If `true`, the prefix and trailing delimiter are removed from the keys in the returned map.
+     *
+     * Example:
+     * - `getSectionGroup("modules", delimiter = ".")` -> `{"auth" -> IniSection, "payment" -> IniSection}`
+     * - `getSectionGroup("modules", delimiter = ":")` -> matches `[modules:auth]`
      */
-    fun getSectionGroup(prefix: String): Map<String, IniSection> {
-        val fullPrefix = "$prefix."
-        return sectionsMap.filter { it.key.startsWith(fullPrefix) }
-            .mapKeys { it.key.substring(fullPrefix.length) }
+    @JvmOverloads
+    fun getSectionGroup(
+        prefix: String,
+        delimiter: String = ".",
+        stripPrefix: Boolean = true
+    ): Map<String, IniSection> {
+        if (prefix.isEmpty()) {
+            return sectionsMap.toMap()
+        }
+
+        val fullPrefix = if (prefix.endsWith(delimiter)) prefix else "$prefix$delimiter"
+
+        return sectionsMap.asSequence()
+            .filter { it.key.startsWith(fullPrefix) }
+            .associate { (key, section) ->
+                val newKey = if (stripPrefix) key.substring(fullPrefix.length) else key
+                Pair(newKey, section)
+            }
     }
 
     /**
