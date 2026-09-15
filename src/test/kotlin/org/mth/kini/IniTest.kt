@@ -101,18 +101,34 @@ class IniTest {
         val ini = ini {
             section("modules.auth") { this["enabled"] = "true" }
             section("modules.payment") { this["gateway"] = "stripe" }
+            section("services:logger") { this["level"] = "debug" }
             section("network") { this["ip"] = "127.0.0.1" }
         }
 
-        // Isola il gruppo "modules" rimuovendo il prefisso dai nomi delle sezioni risultanti
+        // 1. Caso base: delimitatore di default "." con stripPrefix = true
         val modulesGroup = ini.getSectionGroup("modules")
         assertEquals(2, modulesGroup.size)
         assertTrue(modulesGroup.containsKey("auth"))
         assertTrue(modulesGroup.containsKey("payment"))
         assertFalse(modulesGroup.containsKey("network"))
-
         assertEquals("true", modulesGroup["auth"]?.get("enabled"))
         assertEquals("stripe", modulesGroup["payment"]?.get("gateway"))
+
+        // 2. Delimitatore personalizzato ":"
+        val servicesGroup = ini.getSectionGroup("services", delimiter = ":")
+        assertEquals(1, servicesGroup.size)
+        assertTrue(servicesGroup.containsKey("logger"))
+        assertEquals("debug", servicesGroup["logger"]?.get("level"))
+
+        // 3. Conservazione del prefisso (stripPrefix = false)
+        val fullModulesGroup = ini.getSectionGroup("modules", stripPrefix = false)
+        assertEquals(2, fullModulesGroup.size)
+        assertTrue(fullModulesGroup.containsKey("modules.auth"))
+        assertTrue(fullModulesGroup.containsKey("modules.payment"))
+
+        // 4. Edge case: prefisso vuoto (deve restituire tutte le sezioni esplicite)
+        val allSections = ini.getSectionGroup("")
+        assertEquals(4, allSections.size)
     }
 
     @Test
