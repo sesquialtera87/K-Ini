@@ -1,7 +1,32 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2026 Mattia Marelli
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 package org.mth.kini
 
 import java.io.*
 import java.nio.charset.Charset
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 import kotlin.io.path.Path
@@ -12,6 +37,8 @@ import kotlin.io.path.Path
  * This class extends [IniSection] to inherit management for root/global properties
  * (properties declared outside or before any explicit section).
  *
+ * Sections and properties keep their insertion order. Instances are **not** thread-safe.
+ *
  * @author Mattia Marelli
  * @since 2026
  */
@@ -20,17 +47,17 @@ class Ini : IniSection(ROOT) {
     /**
      * Internal backing map that caches sections by their unique name for O(1) lookups.
      */
-    private val sectionsMap: MutableMap<String, IniSection> = mutableMapOf()
+    private val sectionsMap: MutableMap<String, IniSection> = LinkedHashMap()
 
     /**
-     * A read-only collection of all the explicit sections currently contained in this INI object.
+     * A read-only, live collection of all the explicit sections currently contained in this INI object.
      */
-    val sections: Collection<IniSection> get() = sectionsMap.values
+    val sections: Collection<IniSection> get() = Collections.unmodifiableCollection(sectionsMap.values)
 
     /**
      * The total number of global (root) properties.
      */
-    val globalPropertyCount by this::propertyCount
+    val globalPropertyCount: Int get() = propertyCount
 
     /**
      * Returns the total number of explicit sections contained in this INI.
@@ -45,13 +72,22 @@ class Ini : IniSection(ROOT) {
      *
      * @param name The name of the section to retrieve or create.
      * @return The [IniSection] matching the provided name.
+     * @throws IllegalArgumentException if [name] is not a valid section name.
+     * @see sectionOrNull
      */
     fun section(name: String): IniSection {
         return sectionsMap.getOrPut(name) { IniSection(name) }
     }
 
     /**
-     * Returns a map containing all the global (root-level) properties.
+     * Retrieves an existing [IniSection] by its name, without creating it.
+     *
+     * @return The section, or `null` if there is no section with that name.
+     */
+    fun sectionOrNull(name: String): IniSection? = sectionsMap[name]
+
+    /**
+     * Returns a read-only view of all the global (root-level) properties.
      *
      * @return A map of global key-value property pairs.
      */
@@ -87,18 +123,7 @@ class Ini : IniSection(ROOT) {
      * - `getSectionNodes()` returns `["db", "server"]`
      */
     @JvmOverloads
-    fun getSectionNodes(prefix: String = ""): List<String> {
-        val fullPrefix = if (prefix.isEmpty()) "" else "$prefix."
-        return sectionsMap.keys.asSequence()
-            .filter { prefix.isEmpty() || it.startsWith(fullPrefix) }
-            .map { name ->
-                val remaining = name.substring(fullPrefix.length)
-                val dotIndex = remaining.indexOf('.')
-                if (dotIndex < 0) remaining else remaining.substring(0, dotIndex)
-            }
-            .distinct()
-            .toList()
-    }
+    fun getSectionNodes(prefix: String = ""): List<String> = nextLevelTokens(sectionsMap.keys, prefix)
 
     /**
      * Returns a filtered map of [IniSection] instances whose names start with the specified [prefix].
@@ -120,25 +145,13 @@ class Ini : IniSection(ROOT) {
      * Example: `[db.mysql]` and `[server.api]`
      * Returns: `{"db" -> {"mysql" -> IniSection}, "server" -> {"api" -> IniSection}}`
      */
-    fun groupBySectionRoot(): Map<String, Map<String, IniSection>> = sectionsMap.entries
-        .groupBy(
-            keySelector = { entry ->
-                val dotIndex = entry.key.indexOf('.')
-                if (dotIndex < 0) "" else entry.key.substring(0, dotIndex)
-            },
-            valueTransform = { entry ->
-                val dotIndex = entry.key.indexOf('.')
-                val newKey = if (dotIndex < 0) entry.key else entry.key.substring(dotIndex + 1)
-                Pair(newKey, entry.value)
-            }
-        )
-        .mapValues { (_, pairs) -> pairs.toMap() }
+    fun groupBySectionRoot(): Map<String, Map<String, IniSection>> = groupByFirstToken(sectionsMap)
 
     /**
      * Merges all global properties and explicit sections from the given [ini] object into this one.
      *
-     * **WARNING:** Existing properties with the same keys or sections with the same names
-     * will be overwritten by the values from the source [ini] object.
+     * **WARNING:** Existing properties with the same keys will be overwritten by the values from the
+     * source [ini] object. Empty source sections are ignored.
      *
      * @param ini The source [Ini] object to merge into this instance.
      */
@@ -151,6 +164,16 @@ class Ini : IniSection(ROOT) {
                 srcSection.forEach { (k, v) -> destSection[k] = v }
             }
         }
+    }
+
+    /**
+     * Returns a deep copy of this INI: modifying the copy (or its sections) does not affect this instance.
+     */
+    override fun copy(): Ini {
+        val copy = Ini()
+        copy.properties.putAll(properties)
+        sectionsMap.forEach { (name, section) -> copy.sectionsMap[name] = section.copy() }
+        return copy
     }
 
     /**
@@ -183,11 +206,38 @@ class Ini : IniSection(ROOT) {
      *
      * @param path The filesystem [Path] where the file will be saved.
      * @param charset The character encoding to use when writing the file. Defaults to UTF-8.
+     * @param quoteMode The strategy determining when values are quoted. Defaults to [IniQuoteMode.WHEN_NEEDED].
      * @throws IOException If an I/O error occurs while opening or writing to the file.
      */
     @JvmOverloads
-    fun store(path: Path, charset: Charset = Charsets.UTF_8) {
-        store(this, path, charset)
+    fun store(path: Path, charset: Charset = Charsets.UTF_8, quoteMode: IniQuoteMode = IniQuoteMode.WHEN_NEEDED) {
+        store(this, path, charset, quoteMode)
+    }
+
+    /**
+     * Writes this INI to [writer] (the writer is flushed, not closed).
+     *
+     * @throws IOException If an I/O error occurs.
+     */
+    @JvmOverloads
+    fun store(writer: Writer, quoteMode: IniQuoteMode = IniQuoteMode.WHEN_NEEDED) {
+        writer.write(serialize(quoteMode))
+        writer.write("\n")
+        writer.flush()
+    }
+
+    /**
+     * Writes this INI to [outputStream] using [charset] (the stream is flushed, not closed).
+     *
+     * @throws IOException If an I/O error occurs.
+     */
+    @JvmOverloads
+    fun store(
+        outputStream: OutputStream,
+        charset: Charset = Charsets.UTF_8,
+        quoteMode: IniQuoteMode = IniQuoteMode.WHEN_NEEDED
+    ) {
+        store(OutputStreamWriter(outputStream, charset), quoteMode)
     }
 
     /**
@@ -197,42 +247,53 @@ class Ini : IniSection(ROOT) {
      */
     override fun toString(): String = serialize()
 
+    /**
+     * Serializes this INI instance into its textual representation, without a trailing line break.
+     *
+     * Global properties come first, then each non-empty section, in insertion order. Values are quoted
+     * and escaped according to [quoteMode], so that [parse] of the result yields an equal [Ini]
+     * (except for empty sections, which are omitted).
+     */
     @JvmOverloads
     fun serialize(quoteMode: IniQuoteMode = IniQuoteMode.WHEN_NEEDED): String {
         val b = StringBuilder()
 
         properties.forEach { (k, v) ->
-            b.append("$k = ${quoteValue(v, quoteMode)}\n")
-        }
-
-        if (b.isNotEmpty()) {
-            b.append('\n')
+            b.append(k).append(" = ").append(quoteValue(v, quoteMode)).append('\n')
         }
 
         sectionsMap.values.filter { !it.isEmpty() }
             .forEach { section ->
                 if (b.isNotEmpty()) b.append('\n')
-                b.append("[${section.sectionName}]\n")
+                b.append('[').append(section.sectionName).append("]\n")
                 section.forEach { (k, v) ->
-                    b.append("$k = ${quoteValue(v, quoteMode)}\n")
+                    b.append(k).append(" = ").append(quoteValue(v, quoteMode)).append('\n')
                 }
             }
 
-        return b.toString().trim()
+        if (b.isNotEmpty()) b.setLength(b.length - 1)
+        return b.toString()
     }
+
+    /**
+     * Two [Ini] objects are equal when they have the same global properties and the same sections
+     * (order is not significant).
+     */
+    override fun equals(other: Any?): Boolean {
+        if (!super.equals(other)) return false
+        return sectionsMap == (other as Ini).sectionsMap
+    }
+
+    override fun hashCode(): Int = 31 * super.hashCode() + sectionsMap.hashCode()
 
     companion object {
         /**
-         * Internal fallback identifier for the global/root section.
+         * Internal identifier of the global/root section.
          */
         const val ROOT = "###root###"
 
         /**
          * Serializes and writes an [Ini] structure to a file at the specified [path].
-         *
-         * This function uses a [BufferedWriter] to efficiently write the serialized content
-         * generated by [Ini.serialize]. The underlying file stream is automatically closed
-         * upon completion or when an exception occurs.
          *
          * @param ini The [Ini] instance containing the sections and key-value pairs to store.
          * @param path The target file [Path] where the INI configuration will be written.
@@ -242,7 +303,6 @@ class Ini : IniSection(ROOT) {
          * Defaults to [IniQuoteMode.WHEN_NEEDED].
          *
          * @throws java.io.IOException If an I/O error occurs while opening or writing to the file.
-         * @throws java.nio.file.InvalidPathException If the provided [path] cannot be converted to a [java.io.File].
          *
          * @see Ini.serialize
          * @see IniQuoteMode
@@ -255,78 +315,87 @@ class Ini : IniSection(ROOT) {
             charset: Charset = Charsets.UTF_8,
             quoteMode: IniQuoteMode = IniQuoteMode.WHEN_NEEDED
         ) {
-            BufferedWriter(FileWriter(path.toFile(), charset)).use { writer ->
-                writer.write(ini.serialize(quoteMode))
-                writer.flush()
-            }
+            Files.newBufferedWriter(path, charset).use { writer -> ini.store(writer, quoteMode) }
         }
+
+        /**
+         * Parses INI text.
+         *
+         * @throws IniParseException If the text is malformed.
+         */
+        @JvmStatic
+        fun parse(text: CharSequence): Ini = Ini().also { IniParser.parse(text, it) }
 
         /**
          * Parses an INI configuration from a file path string.
          *
          * @param path The string path leading to the target INI file.
+         * @param charset The file encoding. Defaults to UTF-8.
          * @return An [Ini] instance populated with the parsed configuration.
-         * @throws IOException If the file does not exist or cannot be read.
+         * @throws IOException If the file does not exist or cannot be read (or is not valid in [charset]).
+         * @throws IniParseException If the file is malformed.
          */
         @JvmStatic
-        fun load(path: String): Ini = load(Path(path))
+        @JvmOverloads
+        fun load(path: String, charset: Charset = Charsets.UTF_8): Ini = load(Path(path), charset)
 
         /**
          * Parses an INI configuration from a [File] handle.
          *
-         * @param file The [File] pointing to the INI data source.
-         * @return An [Ini] instance populated with the parsed configuration.
-         * @throws IOException If the file is invalid or unreadable.
+         * @see load
          */
         @JvmStatic
-        fun load(file: File): Ini = load(file.toPath())
+        @JvmOverloads
+        fun load(file: File, charset: Charset = Charsets.UTF_8): Ini = load(file.toPath(), charset)
 
         /**
          * Parses an INI configuration from a filesystem [Path].
          *
          * @param path The [Path] leading to the target INI file.
+         * @param charset The file encoding. Defaults to UTF-8.
          * @return An [Ini] instance populated with the parsed configuration.
-         * @throws IOException If an I/O error occurs during reading.
+         * @throws IOException If an I/O error occurs during reading (or the file is not valid in [charset]).
+         * @throws IniParseException If the file is malformed.
          */
         @JvmStatic
-        fun load(path: Path): Ini = FileReader(path.toFile()).use { load(it) }
+        @JvmOverloads
+        fun load(path: Path, charset: Charset = Charsets.UTF_8): Ini =
+            Files.newBufferedReader(path, charset).use { load(it) }
 
         /**
-         * Low-level parsing node that processes an input character stream using an automated JFlex lexer.
+         * Parses an INI configuration from an [InputStream]. The stream is not closed.
          *
-         * @param inputStreamReader The raw [InputStreamReader] stream containing the INI text content.
-         * @return A fully populated [Ini] instance.
+         * @throws IOException If an I/O error occurs during reading.
+         * @throws IniParseException If the content is malformed.
          */
         @JvmStatic
-        fun load(inputStreamReader: InputStreamReader): Ini {
-            return BufferedReader(inputStreamReader).use { reader ->
-                val ini = Ini()
-                val text = reader.readText()
-                val lexer = IniScanner()
-                lexer.reset(text, 0, text.length, IniScanner.YYINITIAL)
-                lexer.yylex()
-                lexer.ini.sections.forEach { section ->
-                    if (section.sectionName == ROOT) {
-                        section.forEach { ini[it.key] = it.value }
-                    } else {
-                        ini.sectionsMap[section.sectionName] = section
-                    }
-                }
-                ini
-            }
-        }
+        @JvmOverloads
+        fun load(inputStream: InputStream, charset: Charset = Charsets.UTF_8): Ini =
+            load(InputStreamReader(inputStream, charset))
+
+        /**
+         * Parses an INI configuration from a [Reader]. The reader is read to the end but not closed.
+         *
+         * @throws IOException If an I/O error occurs during reading.
+         * @throws IniParseException If the content is malformed.
+         */
+        @JvmStatic
+        fun load(reader: Reader): Ini = parse(reader.readText())
 
         /**
          * Attempts to safely load an INI configuration from a [Path].
-         * Catches any internal parser or stream errors, returning `null` instead of throwing exceptions.
+         * Catches any I/O or parsing error, returning `null` instead of throwing exceptions.
          *
          * @param path The [Path] leading to the target INI file.
          * @return A populated [Ini] instance, or `null` if any exception occurred.
          */
         @JvmStatic
-        fun loadOrNull(path: Path): Ini? = try {
-            load(path)
-        } catch (e: Exception) {
+        @JvmOverloads
+        fun loadOrNull(path: Path, charset: Charset = Charsets.UTF_8): Ini? = try {
+            load(path, charset)
+        } catch (e: IOException) {
+            null
+        } catch (e: IniParseException) {
             null
         }
     }
@@ -337,8 +406,8 @@ class Ini : IniSection(ROOT) {
      * Example:
      * ```
      * ini.section("database") {
-     * setProperty("host", "localhost")
-     * setProperty("port", "5432")
+     *     setProperty("host", "localhost")
+     *     setProperty("port", "5432")
      * }
      * ```
      *

@@ -13,33 +13,52 @@ A Kotlin/Java library to read and write INI files (requires Java 11 or above).
 == File format
 
 An INI file is a text-based configuration file organised in key-value pairs of properties and sections organising them.
+K-INI reads it line by line: every syntactical element is contained in a single line.
+Lines may end with `\n`, `\r\n` or `\r`, and a leading byte order mark is ignored.
 
 === Key-Value pairs
 
-K-INI recognizes as a valid key char every character different from `=` and `:`, as the equal sign and the colon are recognized as delimiters between the key and the value.
+A property line has the form `key = value` or `key : value`.
+The *first* `=` or `:` of the line is the delimiter, so values may freely contain both characters
+(`address = 127.0.0.1:8080`).
 
-NOTE: Leading and trailing whitespaces in the key name are ignored.
+NOTE: Leading and trailing blanks (spaces and tabs) around keys and values are ignored.
 
-CAUTION: A key name can also contain whitespaces, even though that practice isn't recommended.
+A key can contain any character except `=`, `:` and line breaks, and cannot start with `[`, `#` or `;`.
+Keys may contain whitespace, even though that practice isn't recommended.
 
 The value is formed by all the characters after the delimiter, until the end of the line (or the beginning of an inline comment).
 
-NOTE: As for keys, leading and trailing whitespaces are ignored.
-
 Values are allowed to be quoted, through single or double quotes, like strings in some programming languages (`key1="value 1"`,`key2='value 2'`).
-This permits to preserve all whitespaces and to use _character escaping_.
-If a value is quoted, the final and ending quotes are not considered as part of the value.
+This permits to preserve all whitespaces, to include comment markers and to use _character escaping_.
+If a value is quoted, the opening and closing quotes are not considered as part of the value,
+and the closing quote can only be followed by blanks and/or a comment.
 
-IMPORTANT: K-INI actually treats an INI file line by line, so every syntactical element of the file cannot span more than one line.
-Multiline values can be stored through quotation and escaping each line feed `\n` in the string.
+The escape sequences recognised inside quoted values are:
+
+[cols="1,3"]
+|===
+| `\t` `\n` `\r` `\f` `\0` | tab, line feed, carriage return, form feed, NUL
+| `\\` `\"` `\'` `\;` `\#` | the character itself
+| `\uXXXX` | the UTF-16 code unit with hexadecimal code `XXXX`
+|===
+
+Any other backslash sequence is kept as is, and no escape processing happens in unquoted values,
+so Windows paths can be written plainly: `dir = C:\new\table`.
+
+Multiline values can be stored through quotation and escaping each line feed: `text = "line 1\nline 2"`.
+
+TIP: A value that opens a quote without closing it on the same line is kept verbatim, opening quote included.
 
 === Sections
 
 Key-value pairs can be grouped under a *section*.
 A section can be declared on a line by itself, by enclosing its name in square brackets: `[A Section]`.
 There's no explicit end-of-section delimiter, so the section declaration applies to all pairs below it, until another section is declared.
+Declaring the same section twice merges the two blocks (and a repeated key overwrites the previous value).
 
 NOTE: Leading and trailing whitespaces in the section name are ignored, so that `[HTTP]` and `[ HTTP ]` declare all the same section named `HTTP`.
+A section name cannot be empty nor contain `]`.
 
 Not every key-value pair has to belong to a section.
 K-INI supports the so-called *global properties*, that is ungrouped pairs declared at the start of the file, before any section declaration.
@@ -54,19 +73,28 @@ a = 2
 
 === Comments
 
-A line starting with `#` or `;` is a comment.
-All chars encountered until the end of the line are discarded from the parser.
+A line starting with `#` or `;` (possibly after some blanks) is a comment.
 As previously noted, nothing can span more than one line, so multiline comments are not recognised.
-Every line that is to be understood as a comment has to start with one of the comment markers.
 
 K-INI accepts also *inline comments*, placed after a section declaration or a key-value pair.
+In an unquoted value, an inline comment starts at a `#` or `;` that is *preceded by a blank*
+(or is the first character of the value): this way passwords, URLs and colors are not truncated.
 
 [source,ini]
 ----
 # a comment
-[section]
-a = 2   ; inline comment...
+[section]   ; inline comment
+a = 2       ; inline comment...
+url = http://example.com/page#anchor
+color = #ff0000         ; WRONG: this is an empty value followed by a comment
+color = "#ff0000"       ; quote values starting with a comment marker
 ----
+
+=== Errors
+
+Malformed lines (a line without delimiter, an empty key, an unclosed or empty section header,
+text after a section header or after a closing quote) raise an `IniParseException`,
+whose `lineNumber` property reports the (1-based) offending line.
 
 == Usage
 
@@ -76,11 +104,12 @@ An `.ini` file is represented by an instance of the class `org.mth.kini.Ini`, de
 Instances of the `org.mth.kini.Ini` class can be obtained in two ways:
 
 * Instantiate an object through the default constructor `val ini = Ini()`.
-* Using the idiomatioc `ini { ... }` DSL block helper function.
+* Using the idiomatic `ini { ... }` DSL block helper function.
 
 [source,kotlin]
 ----
 val ini = ini {
+    this["version"] = 2          // a global property
     section("Section 1") {
         set("property 1", "value 1")
         set("property 2", "value 2")
@@ -92,19 +121,34 @@ val ini = ini {
 }
 ----
 
-Existing `.ini` files can be loaded into an `Ini` object through one of the `load` functions.
+Existing `.ini` files can be loaded into an `Ini` object through one of the `load` functions, or parsed from a string.
+Files are read as UTF-8 unless another charset is given; invalid input for the charset raises an exception
+instead of silently producing mangled text.
 
 [source,kotlin]
 ----
 val ini = Ini.load(Path.of("test/sample.ini"))
+val latin = Ini.load(Path.of("legacy.ini"), Charsets.ISO_8859_1)
+val fromText = Ini.parse("key = value")
+val fromStream = Ini.load(inputStream)      // also load(Reader): the stream/reader is not closed
+val orNull = Ini.loadOrNull(path)           // null on I/O or syntax errors
 ----
 
-The content of an `Ini` object can be stored to the local filesystem with a call to the `store` function.
+The content of an `Ini` object can be stored to the local filesystem with a call to the `store` function
+(or written to any `Writer`/`OutputStream`).
+Values are quoted and escaped where needed, so that loading the stored file gives back an equal `Ini`.
 
 [source,kotlin]
 ----
 ini.store(Path.of("test/sample.ini"))
+ini.store(Path.of("test/sample.ini"), Charsets.UTF_8, IniQuoteMode.ALWAYS)
+val text: String = ini.serialize()
 ----
+
+NOTE: Sections and properties keep their insertion order, which is also the order used when writing.
+
+`Ini` and `IniSection` implement `equals`/`hashCode` by content, and offer a deep `copy()`.
+They are not thread-safe.
 
 ==== Sections
 
@@ -117,11 +161,13 @@ if ("my-section" in ini) {
 }
 ----
 
-The function `section(name: String)` retrieves a named section, or automatically creates it if missing.
+The function `section(name: String)` retrieves a named section, or automatically creates it if missing;
+`sectionOrNull(name: String)` retrieves it without creating it.
 
 [source,kotlin]
 ----
 val section: IniSection = ini.section("my-section")
+val maybe: IniSection? = ini.sectionOrNull("other-section")
 ----
 
 NOTE: Empty sections are not written to the file during the saving process.
@@ -134,27 +180,50 @@ A section can be removed by calling `removeSection(name: String)`.
 
 [source,kotlin]
 ----
-val value = section["my-property"]      // get a property value
+val value = section["my-property"]      // get a property value (null if missing)
 section["my-property"] = "new value"    // set a property value
+section["port"] = 8080                  // any value is stored through toString()
 ----
 
-To avoid manual casts, `IniSection` offers strongly-typed getters for primitives (returning fallbacks if requested):
+Keys that could not be written and read back unchanged (see <<_key_value_pairs>>) are rejected
+with an `IllegalArgumentException`.
 
-- `getBoolean(name, default)`
-- `getShort(name, default)`
-- `getInt(name, default)`
-- `getLong(name, default)` (supports literal suffixes like `100L`)
-- `getDouble(name, default)`
-- `getFloat(name, default)`
+To avoid manual conversions, `IniSection` offers strongly-typed getters, each one in three flavours:
 
-==== Array Support
+[cols="2,3"]
+|===
+| `getInt(name)` | throws `NoSuchElementException` if missing, `NumberFormatException` if malformed
+| `getInt(name, default)` | returns `default` if missing, throws if malformed
+| `getIntOrNull(name)` | returns `null` if missing or malformed
+|===
 
-Properties enclosed in brackets (e.g., `list = [a, b, c]`) can be parsed directly into typed arrays:
+The same pattern applies to `getBoolean`, `getShort`, `getLong` (which accepts literal suffixes like `100L`),
+`getFloat`, `getDouble` and `getEnum`. Values are trimmed before conversion.
+
+`getBoolean` accepts (case-insensitively) `true`/`yes`/`on`/`1` and `false`/`no`/`off`/`0`; anything else is an error.
 
 [source,kotlin]
 ----
-val strings: Array<String> = section.getArray("str_list")
-val integers: Array<out Number> = section.getNumberArray("int_list", Int::class.java)
+enum class Level { DEBUG, INFO }
+
+val level = section.getEnum<Level>("level")                 // case-insensitive
+val level2 = section.getEnum("level", Level::class.java)     // Java-friendly
+val timeout = section.getIntOrNull("timeout") ?: 30
+----
+
+==== List Support
+
+Properties enclosed in brackets (e.g., `list = [a, b, c]`) can be parsed directly into lists and arrays.
+Elements are trimmed, and may be quoted to keep blanks or include the separator (`["a, b", ' c ']`).
+An empty list is written `[]`.
+
+[source,kotlin]
+----
+val strings: List<String> = section.getList("str_list")
+val array: Array<String> = section.getArray("str_list", separator = ";")
+val ints: IntArray = section.getIntArray("int_list")       // also getLongArray, getDoubleArray
+
+section.setList("hosts", listOf("alpha", "beta, gamma"))   // hosts = [alpha, "beta, gamma"]
 ----
 
 === Advanced Hierarchical Features
@@ -184,6 +253,27 @@ val tree: Map<String, Map<String, String>> = section.groupByRoot()
 // Filters and extracts a specific subgroup of properties
 val dbConfig = section.getGroup("db", stripPrefix = true) // {"host" -> "localhost"}
 ----
+
+== Migrating from 1.x
+
+Version 2.0 replaces the JFlex lexer with a hand-written parser and fixes several correctness issues.
+Some behaviours changed on purpose:
+
+* Malformed input raises `IniParseException` (with a 1-based line number) instead of being silently
+  misinterpreted (e.g. a line without `=` used to be glued to the next key) or failing with
+  `NullPointerException`/`StringIndexOutOfBoundsException`/`InputMismatchException`.
+* Inline comments in unquoted values need a preceding blank: `pwd = abc#123` is now `abc#123` (it was `abc`).
+* Leading blanks inside quotes are preserved: `a = "  x"` is now `"  x"` (it was `"x"`).
+* Files are read as UTF-8 by default (they used to be read with the platform charset), and every
+  `load`/`store` function accepts a `Charset`. `load(Reader)` replaces `load(InputStreamReader)` and
+  does not close the reader. Stored files end with a line break.
+* `getBoolean` rejects unknown literals instead of returning `false`, and also accepts `yes/no/on/off/1/0`.
+* Typed getters throw `NoSuchElementException` for missing properties; `getX(name, default)` returns the
+  default only when the property is missing (malformed values throw, consistently for every type).
+* `getArray` returns an empty array for `[]` and supports quoted elements.
+* `equals`/`hashCode` compare names *and content*; `sectionName` is read-only.
+* Invalid keys and section names are rejected when set.
+* `keys`, `values`, `properties()`, `sections` and the iterator are read-only views.
 
 == Installation
 

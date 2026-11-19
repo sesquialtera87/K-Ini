@@ -41,30 +41,78 @@ enum class IniQuoteMode {
 }
 
 /**
- * Regular expression matching values that require quoting in INI files.
- *
- * Matches values containing comments (`#`, `;`), line breaks (`\r`, `\n`),
- * leading/trailing whitespace, or starting with quote characters (`"`, `'`).
+ * Returns `true` if [value] cannot be written verbatim (unquoted) without changing its meaning when read back:
+ * leading/trailing blanks, comment markers, line breaks or other control characters, or a leading quote.
  */
-private val VALUE_NEEDS_QUOTING = Regex("[#;\\r\\n]|^\\s|\\s$|^[\"']")
+internal fun needsQuoting(value: String): Boolean {
+    if (value.isEmpty()) return false
+    val first = value.first()
+    val last = value.last()
+    if (first.isWhitespace() || last.isWhitespace() || first == '"' || first == '\'') return true
+    return value.any { it == '#' || it == ';' || it.isISOControl() }
+}
 
 /**
  * Quotes a string value based on the specified [IniQuoteMode] and its content.
  *
- * Determines whether quoting is necessary and dynamically selects single (`'`)
- * or double (`"`) quotes to prevent premature string termination when quotes are present in [value].
+ * When quoting, double quotes are preferred; single quotes are used when the value contains double quotes
+ * but no single quotes. Backslashes, the chosen quote character and control characters are escaped, so that
+ * parsing the result always yields back the original [value].
  *
  * @param value The raw string value to process.
  * @param mode The [IniQuoteMode] strategy controlling when quotes should be applied.
- * @return The original [value] or a quote-enclosed representation.
+ * @return The original [value] or a quote-enclosed, escaped representation.
  */
 internal fun quoteValue(value: String, mode: IniQuoteMode): String {
-    if (mode == IniQuoteMode.WHEN_NEEDED && !VALUE_NEEDS_QUOTING.containsMatchIn(value)) {
+    if (mode == IniQuoteMode.WHEN_NEEDED && !needsQuoting(value)) {
         return value
     }
-    // If the value already contains double quotes but no single quotes, use single quotes
     val quote = if ('"' in value && '\'' !in value) '\'' else '"'
-    return "$quote$value$quote"
+    val sb = StringBuilder(value.length + 2).append(quote)
+    for (c in value) {
+        when {
+            c == '\\' -> sb.append("\\\\")
+            c == quote -> sb.append('\\').append(c)
+            c == '\n' -> sb.append("\\n")
+            c == '\r' -> sb.append("\\r")
+            c == '\t' -> sb.append("\\t")
+            c == '\u000C' -> sb.append("\\f")
+            c == '\u0000' -> sb.append("\\0")
+            c.isISOControl() -> sb.append("\\u").append(String.format("%04x", c.code))
+            else -> sb.append(c)
+        }
+    }
+    return sb.append(quote).toString()
+}
+
+/**
+ * Ensures that [name] can be written as a property key and read back unchanged.
+ *
+ * @throws IllegalArgumentException if the key is empty, has leading/trailing blanks (space or tab), contains a delimiter
+ * (`=`, `:`) or a line break, or starts with a character that the parser would interpret differently.
+ */
+internal fun requireValidKey(name: String) {
+    require(name.isNotEmpty()) { "Property name must not be empty" }
+    require(name.trim(IniParser::isBlank) == name) { "Property name must not have leading or trailing whitespace: '$name'" }
+    require(name.none { it == '=' || it == ':' || it == '\n' || it == '\r' }) {
+        "Property name must not contain '=', ':' or line breaks: '$name'"
+    }
+    require(name[0] != '[' && name[0] != '#' && name[0] != ';' && name[0] != '\uFEFF') {
+        "Property name must not start with '[', '#' or ';': '$name'"
+    }
+}
+
+/**
+ * Ensures that [name] can be written as a section header and read back unchanged.
+ *
+ * @throws IllegalArgumentException if the name is empty, has leading/trailing blanks, or contains `]` or a line break.
+ */
+internal fun requireValidSectionName(name: String) {
+    require(name.isNotEmpty()) { "Section name must not be empty" }
+    require(name.trim(IniParser::isBlank) == name) { "Section name must not have leading or trailing whitespace: '$name'" }
+    require(name.none { it == ']' || it == '\n' || it == '\r' }) {
+        "Section name must not contain ']' or line breaks: '$name'"
+    }
 }
 
 /**
