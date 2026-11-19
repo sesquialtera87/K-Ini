@@ -146,6 +146,18 @@ ini.store(Path.of("test/sample.ini"), Charsets.UTF_8, IniQuoteMode.ALWAYS)
 val text: String = ini.serialize()
 ----
 
+Files are replaced *atomically*: the content is written to a temporary file in the same directory,
+flushed to disk and then renamed over the target. If something goes wrong (an I/O error, a character that
+the charset cannot encode, a crash), the previous file is left untouched instead of being truncated.
+Symbolic links and POSIX permissions of the existing file are preserved.
+Pass `atomic = false` to write the file in place, e.g. when the directory is not writable.
+
+[source,kotlin]
+----
+ini.store(path)                    // atomic
+ini.store(path, atomic = false)    // in place
+----
+
 NOTE: Sections and properties keep their insertion order, which is also the order used when writing.
 
 `Ini` and `IniSection` implement `equals`/`hashCode` by content, and offer a deep `copy()`.
