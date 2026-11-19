@@ -204,14 +204,22 @@ class Ini : IniSection(ROOT) {
     /**
      * Persists the current INI structure to a file at the specified path.
      *
+     * By default the file is replaced atomically: see [Ini.store] in the companion object.
+     *
      * @param path The filesystem [Path] where the file will be saved.
      * @param charset The character encoding to use when writing the file. Defaults to UTF-8.
      * @param quoteMode The strategy determining when values are quoted. Defaults to [IniQuoteMode.WHEN_NEEDED].
+     * @param atomic Whether to replace the file atomically. Defaults to `true`.
      * @throws IOException If an I/O error occurs while opening or writing to the file.
      */
     @JvmOverloads
-    fun store(path: Path, charset: Charset = Charsets.UTF_8, quoteMode: IniQuoteMode = IniQuoteMode.WHEN_NEEDED) {
-        store(this, path, charset, quoteMode)
+    fun store(
+        path: Path,
+        charset: Charset = Charsets.UTF_8,
+        quoteMode: IniQuoteMode = IniQuoteMode.WHEN_NEEDED,
+        atomic: Boolean = true
+    ) {
+        store(this, path, charset, quoteMode, atomic)
     }
 
     /**
@@ -301,8 +309,15 @@ class Ini : IniSection(ROOT) {
          * Defaults to [Charsets.UTF_8].
          * @param quoteMode The strategy determining when string values should be enclosed in quotes.
          * Defaults to [IniQuoteMode.WHEN_NEEDED].
+         * @param atomic When `true` (the default), the content is written to a temporary file in the same
+         * directory, flushed to disk and then renamed over [path]: a failure or a crash leaves either the old
+         * file or the new one, never a truncated file. Symbolic links and POSIX permissions of an existing file
+         * are preserved; a target that is not a regular file (e.g. a device) is written in place.
+         * When `false`, the file is truncated and written directly, which requires no write permission on the
+         * directory.
          *
-         * @throws java.io.IOException If an I/O error occurs while opening or writing to the file.
+         * @throws java.io.IOException If an I/O error occurs while opening or writing to the file
+         * (also if a character cannot be encoded in [charset]). With [atomic] writes, [path] is then unchanged.
          *
          * @see Ini.serialize
          * @see IniQuoteMode
@@ -313,9 +328,11 @@ class Ini : IniSection(ROOT) {
             ini: Ini,
             path: Path,
             charset: Charset = Charsets.UTF_8,
-            quoteMode: IniQuoteMode = IniQuoteMode.WHEN_NEEDED
+            quoteMode: IniQuoteMode = IniQuoteMode.WHEN_NEEDED,
+            atomic: Boolean = true
         ) {
-            Files.newBufferedWriter(path, charset).use { writer -> ini.store(writer, quoteMode) }
+            val write: (Writer) -> Unit = { writer -> ini.store(writer, quoteMode) }
+            if (atomic) writeAtomically(path, charset, write) else writeInPlace(path, charset, write)
         }
 
         /**
@@ -393,9 +410,9 @@ class Ini : IniSection(ROOT) {
         @JvmOverloads
         fun loadOrNull(path: Path, charset: Charset = Charsets.UTF_8): Ini? = try {
             load(path, charset)
-        } catch (e: IOException) {
+        } catch (_: IOException) {
             null
-        } catch (e: IniParseException) {
+        } catch (_: IniParseException) {
             null
         }
     }
